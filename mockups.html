@@ -1,0 +1,263 @@
+<title>전시 노트 화면안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Nanum+Myeongjo:wght@700;800&display=swap">
+<style>
+/* Layout: 상단 안 선택(A/B/C) → 선택한 안의 앱 목업 프레임 → 장단점. 전시장 벽처럼 차분한 회청색 바탕에 코발트 포인트 */
+:root{
+  --bg:#eef0f3; --surface:#ffffff; --sunk:#f5f6f8; --line:#d9dde3;
+  --fg:#1b2230; --muted:#5d6676; --accent:#2f56c8; --accent-soft:#e3e9fa;
+  --ok:#2e7d55; --ok-soft:#e2f2e9; --warn:#a2650c; --warn-soft:#fbefdc; --err:#b3372f; --err-soft:#f9e3e1;
+  --display:"Nanum Myeongjo", "Noto Serif KR", Georgia, serif;
+  --ui:"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1b212b; --sunk:#151a22; --line:#2c3441;
+  --fg:#e6e9ee; --muted:#9aa3b2; --accent:#7f9cf2; --accent-soft:#232f4d;
+  --ok:#6cc596; --ok-soft:#1d3328; --warn:#e3a856; --warn-soft:#3a2d18; --err:#ef8a80; --err-soft:#3d2220; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1b212b; --sunk:#151a22; --line:#2c3441;
+  --fg:#e6e9ee; --muted:#9aa3b2; --accent:#7f9cf2; --accent-soft:#232f4d;
+  --ok:#6cc596; --ok-soft:#1d3328; --warn:#e3a856; --warn-soft:#3a2d18; --err:#ef8a80; --err-soft:#3d2220; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;gap:20px}
+h1{font-family:var(--display);font-size:28px;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:4px 0 0;max-width:65ch}
+.picker{display:flex;flex-wrap:wrap;gap:8px}
+.picker button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 14px;border-radius:10px;cursor:pointer;text-align:left;display:grid;gap:2px;min-width:0;flex:1 1 220px}
+.picker button b{font-size:15px}
+.picker button span{color:var(--muted);font-size:12.5px}
+.picker button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.picker button:focus-visible,.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:12px;color:var(--muted)}
+/* 앱 프레임 */
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sunk);border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.dots{display:flex;gap:5px}.dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.app{padding:18px;display:grid;gap:14px}
+.apptitle{font-family:var(--display);font-size:20px;margin:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{font:inherit;background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent);font-weight:600}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.field{display:grid;gap:3px;font-size:11.5px;color:var(--muted);flex:1 1 140px;min-width:0}
+.input{border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:7px 10px;color:var(--fg);font-size:13px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg span{flex:1;text-align:center;padding:7px 6px;font-size:13px;color:var(--fg)}
+.seg span.on{background:var(--accent);color:var(--surface)}
+.list{display:grid;gap:8px}
+.row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.row.sel{border-color:var(--accent);background:var(--accent-soft)}
+.row h4{margin:0;font-size:14px;font-weight:600}
+.meta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.pill{font-size:11px;padding:2px 8px;border-radius:99px;align-self:start;white-space:nowrap}
+.p-now{background:var(--ok-soft);color:var(--ok)}.p-soon{background:var(--warn-soft);color:var(--warn)}
+.p-int{background:var(--accent-soft);color:var(--accent)}
+.summary{background:var(--sunk);border-left:3px solid var(--accent);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13px}
+.summary b{display:block;font-size:11.5px;color:var(--muted);font-weight:500;margin-bottom:4px;letter-spacing:.02em}
+.summary ol{margin:0;padding-left:18px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cols>*{min-width:0}
+.sec h5{margin:0 0 6px;font-size:12.5px;color:var(--muted);font-weight:600;letter-spacing:.03em}
+.link{display:grid;gap:1px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.link a{color:var(--accent);text-decoration:none}
+.err{background:var(--err-soft);color:var(--err);padding:8px 10px;border-radius:8px;font-size:12.5px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.btn{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.stars{color:var(--warn);letter-spacing:1px}
+/* B: 사이드바 */
+.split{display:grid;grid-template-columns:210px 1fr;min-height:420px}
+.side{background:var(--sunk);border-right:1px solid var(--line);padding:16px;display:grid;gap:12px;align-content:start}
+.side .nav{display:grid;gap:2px}
+.side .nav span{padding:6px 8px;border-radius:6px;font-size:13px}
+.side .nav span.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.main2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:14px;padding:16px}
+@media (max-width:760px){.split{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line)}.main2{grid-template-columns:1fr}}
+/* C: 카드 + 보드 */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);display:grid}
+.thumb{aspect-ratio:4/3;max-width:100%}
+.t1{background:linear-gradient(135deg,#6b7fb8,#c9b48a)}.t2{background:linear-gradient(135deg,#2f4a3a,#9fb59a)}
+.t3{background:linear-gradient(135deg,#8a3b3b,#e0b7a0)}.t4{background:linear-gradient(135deg,#3c3f58,#a6a9c9)}
+.card .in{padding:8px 10px;display:grid;gap:2px}
+.card h4{margin:0;font-size:13.5px}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lane{background:var(--sunk);border-radius:10px;padding:10px;display:grid;gap:8px;align-content:start}
+.lane h5{margin:0;font-size:12.5px;display:flex;justify-content:space-between;color:var(--muted)}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;display:grid;gap:2px}
+@media (max-width:640px){.board{grid-template-columns:1fr}}
+.pros{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.pros div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.pros h3{margin:0 0 6px;font-size:13px}
+.pros ul{margin:0;padding-left:18px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.frame{transition:opacity .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>미술 전시 노트 · 화면 3안</h1>
+    <p class="lede">seed.yaml v1.6 기준으로 같은 기능을 세 가지 화면 구성으로 그려 본 모의 화면입니다. 전시·기사 데이터는 모두 예시입니다.</p>
+  </header>
+
+  <div class="picker" role="group" aria-label="화면안 선택">
+    <button type="button" data-opt="a" aria-pressed="true"><b>A안 · 탭 이동형</b><span>목록 → 상세 → 내 전시를 상단 탭으로 오감</span></button>
+    <button type="button" data-opt="b" aria-pressed="false"><b>B안 · 사이드바 + 2단</b><span>왼쪽 필터, 가운데 목록, 오른쪽 상세를 한 화면에</span></button>
+    <button type="button" data-opt="c" aria-pressed="false"><b>C안 · 카드 + 보드</b><span>전시는 카드로, 내 전시는 상태별 3열 보드로</span></button>
+  </div>
+
+  <!-- A안 -->
+  <section class="opt" data-opt="a">
+    <div class="frame">
+      <div class="bar"><div class="dots"><i></i><i></i><i></i></div>localhost:8501</div>
+      <div class="app">
+        <p class="apptitle">미술 전시 노트</p>
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" aria-selected="false" data-tab="a-list">전시 목록</button>
+          <button type="button" role="tab" aria-selected="true" data-tab="a-detail">전시 상세</button>
+          <button type="button" role="tab" aria-selected="false" data-tab="a-my">내 전시</button>
+        </div>
+
+        <div data-pane="a-list" hidden>
+          <div class="filters">
+            <label class="field">기간<div class="seg"><span class="on">진행중</span><span>진행예정</span><span>전체</span></div></label>
+            <label class="field">지역<div class="input">서울 ▾</div></label>
+            <label class="field">제목 키워드<div class="input">빛</div></label>
+          </div>
+          <div class="list" style="margin-top:10px">
+            <div class="row"><h4>빛의 층위: 한국 추상회화 50년</h4><span class="pill p-now">진행중</span><div class="meta">한강아트센터 · 서울 · 2026-10-02 ~ 2027-01-18</div></div>
+            <div class="row"><h4>빛을 엮는 손: 섬유미술展</h4><span class="pill p-now">진행중</span><div class="meta">북촌 공예미술관 · 서울 · 2026-11-01 ~ 2026-12-28</div></div>
+          </div>
+        </div>
+
+        <div data-pane="a-detail">
+          <div style="display:grid;gap:4px">
+            <h4 style="margin:0;font-size:16px">빛의 층위: 한국 추상회화 50년</h4>
+            <div class="meta">한강아트센터 · 서울 · 2026-10-02 ~ 2027-01-18</div>
+          </div>
+          <div class="summary" style="margin-top:10px"><b>AI 요약 · 뉴스 5 + 블로그 5 기준</b>
+            <ol><li>1970년대 단색화부터 2020년대 디지털 추상까지 120여 점을 시대순으로 보여줌</li>
+            <li>관람객들은 3층 대형 설치작과 자연광 전시실을 가장 많이 언급</li>
+            <li>주말 오후 혼잡, 평일 오전 관람 추천 글이 다수</li></ol></div>
+          <div class="cols" style="margin-top:12px">
+            <div class="sec"><h5>뉴스</h5>
+              <div class="link"><a href="#">추상회화 반세기, 한자리에 모였다</a><span class="meta">2026-11-09</span></div>
+              <div class="link"><a href="#">자연광으로 다시 본 단색화</a><span class="meta">2026-11-04</span></div>
+              <div class="link"><a href="#">연말 가볼 만한 전시 다섯 곳</a><span class="meta">2026-10-30</span></div></div>
+            <div class="sec"><h5>블로그</h5>
+              <div class="err">관련 글을 불러오지 못했습니다.</div>
+              <p class="note">↑ 한 영역만 실패했을 때 표시 예시</p></div>
+          </div>
+          <div class="btns" style="margin-top:12px"><span class="btn pri">관심 전시로 저장</span></div>
+        </div>
+
+        <div data-pane="a-my" hidden>
+          <div class="tabs"><button type="button" aria-selected="false">관심 2</button><button type="button" aria-selected="true">관람예정 1</button><button type="button" aria-selected="false">관람완료 1</button></div>
+          <div class="list" style="margin-top:10px">
+            <div class="row"><h4>빛의 층위: 한국 추상회화 50년</h4><span class="pill p-soon">관람예정</span>
+              <div class="meta">관람예정일 2026-11-22</div>
+              <div class="btns" style="grid-column:1/-1"><span class="btn">예정일 변경</span><span class="btn pri">관람완료</span><span class="btn">삭제</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B안 -->
+  <section class="opt" data-opt="b" hidden>
+    <div class="frame">
+      <div class="bar"><div class="dots"><i></i><i></i><i></i></div>localhost:8501</div>
+      <div class="split">
+        <aside class="side">
+          <p class="apptitle" style="font-size:17px">미술 전시 노트</p>
+          <div class="nav"><span class="on">전시 찾기</span><span>내 전시 (4)</span></div>
+          <label class="field">기간<div class="seg"><span class="on">진행중</span><span>예정</span><span>전체</span></div></label>
+          <label class="field">지역<div class="input">전체 ▾</div></label>
+          <label class="field">제목 키워드<div class="input">조각</div></label>
+        </aside>
+        <div class="main2">
+          <div class="list">
+            <div class="row sel"><h4>돌과 숨: 현대조각 특별전</h4><span class="pill p-now">진행중</span><div class="meta">해운대 바다미술관 · 부산 · ~2027-02-02</div></div>
+            <div class="row"><h4>조각난 풍경: 젊은 조각가 6인</h4><span class="pill p-soon">예정</span><div class="meta">대구 수성아트홀 · 대구 · 2026-12-05~</div></div>
+            <div class="row"><h4>청동의 시간</h4><span class="pill p-now">진행중</span><div class="meta">광주 남구미술관 · 광주 · ~2026-12-20</div></div>
+          </div>
+          <div style="display:grid;gap:10px;align-content:start">
+            <div><h4 style="margin:0;font-size:16px">돌과 숨: 현대조각 특별전</h4><div class="meta">해운대 바다미술관 · 부산 · 2026-09-12 ~ 2027-02-02</div></div>
+            <div class="btns"><span class="btn pri">관심 저장</span></div>
+            <div class="summary"><b>AI 요약</b><ol><li>야외 조각정원과 실내관을 잇는 동선이 특징</li><li>석조 대작 「숨」이 대표작으로 자주 소개됨</li><li>해 질 무렵 야외 관람 후기가 많음</li></ol></div>
+            <div class="sec"><h5>뉴스 · 블로그</h5>
+              <div class="link"><a href="#">[뉴스] 바닷바람 맞는 조각들</a><span class="meta">2026-11-08</span></div>
+              <div class="link"><a href="#">[블로그] 부산 1박 2일 전시 코스</a><span class="meta">2026-11-06</span></div>
+              <div class="link"><a href="#">[뉴스] 조각 전시 관람객 두 배로</a><span class="meta">2026-11-02</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C안 -->
+  <section class="opt" data-opt="c" hidden>
+    <div class="frame">
+      <div class="bar"><div class="dots"><i></i><i></i><i></i></div>localhost:8501</div>
+      <div class="app">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center">
+          <p class="apptitle">미술 전시 노트</p>
+          <div class="filters" style="flex:1 1 360px;justify-content:flex-end">
+            <div class="seg" style="flex:0 1 220px"><span class="on">진행중</span><span>예정</span><span>전체</span></div>
+            <div class="input" style="flex:0 1 110px">서울 ▾</div>
+            <div class="input" style="flex:0 1 150px">키워드</div>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="card"><div class="thumb t1"></div><div class="in"><h4>빛의 층위</h4><span class="meta">한강아트센터 · ~01.18</span></div></div>
+          <div class="card"><div class="thumb t2"></div><div class="in"><h4>숲의 기록: 생태 사진展</h4><span class="meta">서촌 갤러리 · ~12.14</span></div></div>
+          <div class="card"><div class="thumb t3"></div><div class="in"><h4>붉은 방의 초상</h4><span class="meta">성수 아트하우스 · ~01.05</span></div></div>
+          <div class="card"><div class="thumb t4"></div><div class="in"><h4>도시를 그린 판화</h4><span class="meta">을지 판화공방 · 12.10~</span></div></div>
+        </div>
+        <p class="note">카드를 누르면 상세(요약 + 뉴스·블로그)가 아래로 펼쳐짐. 썸네일은 API에 이미지가 있을 때만, 없으면 색 블록.</p>
+        <div style="display:grid;gap:8px">
+          <h4 style="margin:0;font-size:14px">내 전시</h4>
+          <div class="board">
+            <div class="lane"><h5>관심 <span>2</span></h5>
+              <div class="mini"><b>숲의 기록: 생태 사진展</b><span class="meta">저장 11-09</span><span class="btns"><span class="btn">관람예정 지정</span></span></div>
+              <div class="mini"><b>도시를 그린 판화</b><span class="meta">저장 11-07</span></div></div>
+            <div class="lane"><h5>관람예정 <span>1</span></h5>
+              <div class="mini"><b>빛의 층위</b><span class="meta">예정일 2026-11-22</span><span class="btns"><span class="btn pri">관람완료</span></span></div></div>
+            <div class="lane"><h5>관람완료 <span>1</span></h5>
+              <div class="mini"><b>붉은 방의 초상</b><span class="stars">★★★★☆</span><span class="meta">"초상 연작의 색이 사진보다 훨씬 강렬했다."</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="pros" id="pros"></div>
+</div>
+
+<script>
+const PROS = {
+  a: [["좋은 점",["Streamlit 기본 탭(st.tabs)만으로 구현, 가장 단순","화면 하나에 한 가지 일만 보여서 혼동이 적음","모바일 폭에서도 그대로 동작"]],
+      ["아쉬운 점",["목록과 상세를 오갈 때 탭을 직접 눌러야 함","여러 전시 비교가 불편"]]],
+  b: [["좋은 점",["필터를 바꾸며 목록·상세를 동시에 확인","PC에서 탐색 속도가 가장 빠름","st.sidebar + st.columns로 구현"]],
+      ["아쉬운 점",["좁은 화면에서는 세로로 쌓여 길어짐","상세 영역이 좁아 요약·기사 목록이 빽빽함"]]],
+  c: [["좋은 점",["전시를 훑어보는 재미, 갤러리 느낌","내 전시가 관심 → 예정 → 완료 흐름으로 한눈에 보임"]],
+      ["아쉬운 점",["카드·보드 스타일에 CSS 손질이 더 필요","공공 API에 이미지가 없으면 카드가 밋밋함","Seed의 '상태별 탭' 대신 보드로 바뀌어 기준 문구 수정 필요"]]]
+};
+function renderPros(k){
+  document.getElementById("pros").innerHTML = PROS[k].map(([h,items]) =>
+    `<div><h3>${h}</h3><ul>${items.map(i=>`<li>${i}</li>`).join("")}</ul></div>`).join("");
+}
+document.querySelectorAll(".picker button").forEach(b => b.addEventListener("click", () => {
+  const k = b.dataset.opt;
+  document.querySelectorAll(".picker button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  document.querySelectorAll("section.opt").forEach(s => s.hidden = s.dataset.opt !== k);
+  renderPros(k);
+}));
+document.querySelectorAll('[data-tab]').forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute("aria-selected", x === t));
+  document.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== t.dataset.tab);
+}));
+document.querySelectorAll('.link a').forEach(a => a.addEventListener("click", e => e.preventDefault()));
+renderPros("a");
+</script>

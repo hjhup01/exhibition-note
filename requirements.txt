@@ -1,0 +1,6 @@
+streamlit
+requests
+python-dotenv
+langchain-aws
+langsmith
+pytest
