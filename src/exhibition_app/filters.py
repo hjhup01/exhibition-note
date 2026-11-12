@@ -46,6 +46,13 @@ def keyword_matches(kw, title) -> bool:
     return any(words) and all(w in t for w in words if w)
 
 
+def keyword_target(e) -> str:
+    """키워드로 찾는 글: 전시 제목 + 장소 이름 + 시·도 + 시·군·구.
+    예: '북서울'·'시립'은 장소 '서울시립 북서울미술관'에서, '종로'는 '종로구'에서 찾는다."""
+    return " ".join(x for x in (e.title, getattr(e, "place", ""), getattr(e, "region", ""),
+                                getattr(e, "district", "")) if x)
+
+
 def district_options(base, region) -> list:
     """해당 시·도 전시의 시·군·구 목록(가나다순). 예: 서울 → [강남구, 종로구, ...]"""
     return sorted({e.district for e in base if e.region == region and getattr(e, "district", "")})
@@ -65,9 +72,10 @@ def sort_exhibitions(items, order) -> list:
 
 
 def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, keyword="",
-                       art_only=False, districts=None) -> list:
+                       art_only=False, districts=None, title_only=False) -> list:
     """region: '전체' 또는 시·도 하나(str) 또는 여러 개(list, 비면 전체).
-    districts: {시·도: [구, ...]} — 그 시·도는 고른 구의 전시만 남긴다(비어 있으면 그 시·도 전체)."""
+    districts: {시·도: [구, ...]} — 그 시·도는 고른 구의 전시만 남긴다(비어 있으면 그 시·도 전체).
+    keyword: 화면에서는 제목·장소·지역에서 찾는다. title_only=True면 제목에서만(AI 도구: 장소는 place로 따로 찾는다)."""
     t = today.isoformat()
     kw = normalize_keyword(keyword)
     regions = None if region in (REGION_ALL, None, "") else (
@@ -87,7 +95,7 @@ def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, 
             continue
         if period == PERIOD_UPCOMING and not e.start_date > t:
             continue
-        if kw and not keyword_matches(kw, e.title):
+        if kw and not keyword_matches(kw, e.title if title_only else keyword_target(e)):
             continue
         out.append(e)
     return out

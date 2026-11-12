@@ -115,7 +115,7 @@ docker build -t exhibition-note . && docker run --rm -p 8000:8000 --env-file .en
 ## 핵심 코드 위치
 - `src/agent.py:111` — 메인 에이전트 그래프 (`build_graph`: input_guard → react → compose → output_guard)
 - `src/agent.py:207` — `run`: 질의 1건 처리 → API 응답 형식 `{answer, contexts, trace}`
-- `src/tools.py` — 도메인 도구 4종 (목록 `src/tools.py:134`) (`search_exhibitions`, `retrieve_docs`, `search_related_posts`, `get_my_records`)
+- `src/tools.py` — 도메인 도구 4종 (목록 `src/tools.py:135`) (`search_exhibitions`, `retrieve_docs`, `search_related_posts`, `get_my_records`)
 - `src/retriever.py` — RAG 파이프라인 (토크나이저, 쿼리 확장, BM25, 재정렬 · 검색 `src/retriever.py:102`)
 - `src/guardrails.py` — 입력·출력 가드레일, PII 마스킹
 - `src/api.py` — `POST /query` (FastAPI)

@@ -61,7 +61,8 @@ def search_exhibitions(region: str = "", period: str = "전시중", keyword: str
     region = culture_api.normalize_region(region) if region else messages.REGION_ALL
     shown = filters.filter_exhibitions(filters.base_set(items, today), today,
                                        PERIODS.get(period, messages.PERIOD_ONGOING),
-                                       region or messages.REGION_ALL, keyword, art_only=bool(art_only))
+                                       region or messages.REGION_ALL, keyword, art_only=bool(art_only),
+                                       title_only=True)
     want_place = (place or "").replace(" ", "").casefold()
     if want_place:
         shown = [e for e in shown if want_place in (e.place or "").replace(" ", "").casefold()]

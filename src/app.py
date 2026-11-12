@@ -915,7 +915,8 @@ def main():
             st.session_state[d_key] = [d for d in st.session_state[d_key] if d in d_options]
         districts[DEFAULT_REGION] = card.multiselect(
             messages.FILTER_DISTRICT_LABEL, d_options, placeholder=messages.FILTER_DISTRICT_PLACEHOLDER, key=d_key)
-    keyword = card.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword")
+    keyword = card.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword", placeholder=messages.FILTER_KEYWORD_PLACEHOLDER,
+                              help=messages.FILTER_KEYWORD_HELP)
     art_only = card.checkbox(messages.FILTER_ART_ONLY_LABEL, key="art-only")
 
     shown = filters.filter_exhibitions(base, today, messages.PERIOD_ALL if period == messages.PERIOD_PAST else period,

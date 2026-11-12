@@ -81,3 +81,25 @@ def test_keyword_ignores_punctuation_and_matches_all_words():
     assert keyword_matches("수직정원", "패트릭 블랑: 수직정원")
     assert not keyword_matches("패트릭 정원사", "패트릭 블랑: 수직정원")
     assert keyword_matches("", "아무 제목")
+
+
+def test_keyword_searches_place_region_and_district_too():
+    from exhibition_app.culture_api import Exhibition
+    rows = [Exhibition("1", "모네의 정원", "전시", "서울", "서울시립 북서울미술관", "2026-01-01", "2026-12-31", "노원구"),
+            Exhibition("2", "빛의 층위", "전시", "서울", "국립현대미술관 서울관", "2026-01-01", "2026-12-31", "종로구"),
+            Exhibition("3", "바다 풍경", "전시", "부산", "부산시립미술관", "2026-01-01", "2026-12-31", "해운대구")]
+    assert ids(filter_exhibitions(rows, TODAY, keyword="북서울")) == ["1"]          # 장소 이름
+    assert ids(filter_exhibitions(rows, TODAY, keyword="시립")) == ["1", "3"]       # 장소 이름 일부
+    assert ids(filter_exhibitions(rows, TODAY, keyword="종로")) == ["2"]           # 구 이름
+    assert ids(filter_exhibitions(rows, TODAY, keyword="부산")) == ["3"]           # 시·도
+    assert ids(filter_exhibitions(rows, TODAY, keyword="모네 북서울")) == ["1"]     # 제목 + 장소 낱말 모두
+    assert ids(filter_exhibitions(rows, TODAY, keyword="모네 부산")) == []
+    assert ids(filter_exhibitions(rows, TODAY, keyword="층위")) == ["2"]           # 제목은 그대로 찾는다
+
+
+def test_ai_tool_keyword_stays_title_only():
+    """AI 도구(search_exhibitions)는 키워드를 제목에서만 찾고, 장소는 place 인자로 따로 찾는다(평가 기준 유지)."""
+    from exhibition_app.culture_api import Exhibition
+    rows = [Exhibition("1", "모네의 정원", "전시", "서울", "서울시립 북서울미술관", "2026-01-01", "2026-12-31", "노원구")]
+    assert ids(filter_exhibitions(rows, TODAY, keyword="북서울", title_only=True)) == []
+    assert ids(filter_exhibitions(rows, TODAY, keyword="모네", title_only=True)) == ["1"]
