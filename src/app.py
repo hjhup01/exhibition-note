@@ -5,8 +5,8 @@ from datetime import timedelta
 import streamlit as st
 from dotenv import load_dotenv
 
-from exhibition_app import (config, culture_api, filters, google_drive, messages, native_auth, repository, search_api,
-                            storage, summarizer)
+from exhibition_app import (config, culture_api, filters, google_drive, llm_status, messages, native_auth, repository,
+                            search_api, storage, summarizer)
 
 _STORE = None  # 이번 실행의 저장소(LocalStorage 또는 SheetStorage). main()이 정한다.
 NATIVE = "native"  # 구글 설정 대신 쓰는 표시: Streamlit 내장 로그인(st.login, 같은 창)을 쓴다
@@ -540,6 +540,8 @@ def _render_my(db_path, today):
 def _render_assistant():
     """AI 도우미: 질문 → 에이전트(src/agent.py) → 답변 + 근거 문서 + 처리 과정."""
     st.caption(messages.ASSISTANT_INTRO)
+    if not llm_status.available():
+        st.info(messages.AI_UNAVAILABLE, icon="⚠️")
     history = st.session_state.setdefault("chat", [])
     for turn in history:
         with st.chat_message(turn["role"]):

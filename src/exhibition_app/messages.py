@@ -35,6 +35,8 @@ REGION_ALL = ALL
 
 CULTURE_FAILED = "전시 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
 RETRY_BUTTON = "다시 불러오기"
+AI_UNAVAILABLE = ("지금은 AI 기능(AI 도우미·요약)을 쓸 수 없습니다. 서비스 설정을 점검 중입니다. "
+                  "전시 찾기와 내 전시는 그대로 쓸 수 있습니다.")
 DETAIL_LOADING = "전시 정보를 불러오는 중…"
 FILTER_SORT_LABEL = "정렬"
 SORT_DEFAULT = "기본순"

@@ -21,6 +21,15 @@ def _no_real_detail_api(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _fresh_llm_status():
+    """AI 인증 실패 기록이 테스트 사이에 남지 않게 한다."""
+    from exhibition_app import llm_status
+    llm_status.reset()
+    yield
+    llm_status.reset()
+
+
+@pytest.fixture(autouse=True)
 def _no_native_login_from_secrets(monkeypatch):
     """실제 .streamlit/secrets.toml의 [auth](내장 로그인) 설정이 테스트에 섞이지 않게 한다."""
     from exhibition_app import native_auth

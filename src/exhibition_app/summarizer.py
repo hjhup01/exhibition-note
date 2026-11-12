@@ -2,7 +2,7 @@
 import os
 import re
 
-from . import config
+from . import config, llm_status
 
 MAX_LINES = 5
 NO_MATCH = "이 전시에 관한 글을 찾지 못했습니다."
@@ -68,8 +68,11 @@ def summarize(web, blogs, invoke=None, env=None, title=""):
     try:
         if not (web or blogs):
             return ""
+        if not llm_status.available():  # 키 만료 등 인증 오류 직후: 부르지 않고 바로 건너뛴다
+            return ""
         system, user = build_messages(web, blogs, title=title)
         call = invoke or (lambda s, u: _default_invoke(s, u, env))
         return trim_summary(call(system, user))
-    except Exception:
+    except Exception as e:
+        llm_status.note(e)
         return ""

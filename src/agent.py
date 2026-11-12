@@ -22,7 +22,7 @@ from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
 import guardrails
-from exhibition_app import config
+from exhibition_app import config, llm_status, messages
 from tools import TOOLS
 
 MAX_CONTEXTS = 10
@@ -131,6 +131,7 @@ def build_graph(llm=None):
             result = react_agent.invoke({"messages": [("user", state["safe_question"])]},
                                         config={"recursion_limit": RECURSION_LIMIT})
         except Exception as e:  # 도구 루프 초과·모델 오류
+            llm_status.note(e)
             trace.append({"step": "react", "input": state["safe_question"], "output": f"error: {type(e).__name__}"})
             return {"draft": "", "tool_calls": [], "contexts": [], "trace": trace}
         calls, contexts, seen, args_by_id = [], [], set(), {}
@@ -166,6 +167,7 @@ def build_graph(llm=None):
                                        "draft": state.get("draft") or "(없음)", "contexts": _contexts_text(ctx[:20])})
             answer, used = fa.answer, [d for d in fa.used_doc_ids if any(c["doc_id"] == d for c in ctx)]
         except Exception as e:
+            llm_status.note(e)
             answer, used = state.get("draft") or FALLBACK_ANSWER, []
             trace.append({"step": "compose", "input": "contexts", "output": f"error: {type(e).__name__} (초안 사용)"})
             return {"answer": answer, "used_doc_ids": used, "trace": trace}
@@ -207,6 +209,10 @@ _GRAPH = None
 def run(question, graph=None):
     """질문 하나를 처리해 API 규약 형식으로 돌려준다."""
     global _GRAPH
+    if not llm_status.available():  # 키 만료 등 인증 오류 직후: 모델을 부르지 않고 바로 안내한다
+        return {"answer": messages.AI_UNAVAILABLE, "contexts": [],
+                "trace": [{"step": "llm_check", "input": question, "output": "AI 인증 오류로 잠시 건너뜀"}],
+                "tools_called": []}
     if graph is None:
         _GRAPH = _GRAPH or build_graph()
         graph = _GRAPH
@@ -214,6 +220,8 @@ def run(question, graph=None):
                          config={"run_name": "exhibition-agent", "tags": ["mini-pjt"]})
     ctx = state.get("contexts") or []
     answer = state.get("answer") or FALLBACK_ANSWER
+    if answer == FALLBACK_ANSWER and not llm_status.available():  # 이번에 인증 오류가 났다
+        answer = messages.AI_UNAVAILABLE
     used = state.get("used_doc_ids") or []
     # 근거 순서: 인용한 문서 → 답변에 제목이 나온 전시 → 나머지. 답변에 쓴 근거는 개수 제한으로 잘리지 않게 한다.
     cited = [c for d in used for c in ctx if c["doc_id"] == d]
