@@ -61,7 +61,13 @@ def _detail_data(exhibition):
 
 
 def _flash(result, ok_text=None):
-    """쓰기 결과를 다음 실행에서 보이도록 저장하고 다시 그린다(사이드바 건수 갱신).
+    """쓰기 결과를 다음 실행에서 보이도록 저장하고 다시 그린다(사이드바 건수 갱신)."""
+    _remember_result(result, ok_text)
+    st.rerun()
+
+
+def _remember_result(result, ok_text=None):
+    """쓰기 결과 문구를 다음 실행에서 보이도록 저장한다(버튼 콜백에서도 쓴다: 콜백 뒤에는 저절로 다시 그린다).
     실패하면 저장 규칙이 돌려준 문구를, 성공하면 ok_text를 보여 준다.
     구글 시트를 쓰는 중이면 성공한 변경을 시트에 올리고, 올리기에 실패하면 그 문구를 보여 준다."""
     message = result.message if not result.ok else ok_text
@@ -74,7 +80,6 @@ def _flash(result, ok_text=None):
         except google_drive.GoogleError as e:
             message = str(e)
     st.session_state["flash"] = message
-    st.rerun()
 
 
 def _handle_google_redirect(settings):
@@ -511,6 +516,20 @@ def _render_planned(db_path, r, today, opened=True):
     st.caption(messages.COMPLETE_NOTE)
 
 
+def _set_state(key, value):
+    st.session_state[key] = value
+
+
+def _delete_review(db_path, eid, today):
+    """삭제 확인 후: 관람평을 지우고 입력란(별점·글)도 비운다(콜백이라 위젯보다 먼저 값을 바꿀 수 있다)."""
+    result = repository.delete_review(db_path, eid, today=today)
+    st.session_state[f"review-del-ask-{eid}"] = False
+    if result.ok:
+        st.session_state[f"review-text-{eid}"] = ""
+        st.session_state[f"rating-{eid}"] = 5
+    _remember_result(result, messages.REVIEW_DELETED_DONE)
+
+
 def _render_done(db_path, r, today, opened=True):
     eid = r["exhibition_id"]
     c1, c2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -524,25 +543,32 @@ def _render_done(db_path, r, today, opened=True):
             _flash(repository.change_actual_date(db_path, eid, actual.isoformat() if actual else "",
                                                  today=today),
                    messages.ACTUAL_DATE_CHANGED_DONE)
+    # 관람평: 저장된 별점·글을 입력란에 채워 한 곳에서 보고 고친다(따로 보여 주지 않는다)
     has_review = r["review_rating"] is not None
-    if has_review:
-        st.write("★" * r["review_rating"] + "☆" * (5 - r["review_rating"]))
-        st.write(r["review_text"])
-    else:
+    rating_key, text_key, ask_key = f"rating-{eid}", f"review-text-{eid}", f"review-del-ask-{eid}"
+    # 입력란 값은 세션 값으로만 정한다(삭제 후 입력란을 비울 때 경고가 나지 않게)
+    st.session_state.setdefault(rating_key, r["review_rating"] if has_review else 5)
+    st.session_state.setdefault(text_key, r["review_text"] or "")
+    st.markdown(f"**{messages.REVIEW_HEADING}**")
+    if not has_review:
         st.caption(messages.NO_REVIEW)
-    rating = st.radio(messages.RATING_LABEL, [1, 2, 3, 4, 5],
-                      index=(r["review_rating"] - 1) if has_review else 4,
-                      format_func=lambda n: "★" * n, horizontal=True, key=f"rating-{eid}")
-    text = st.text_area(messages.REVIEW_TEXT_LABEL, value=r["review_text"] or "", max_chars=1000,
-                        key=f"review-text-{eid}")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button(messages.REVIEW_SAVE_BUTTON, key=f"review-{eid}", type="primary"):
-            _flash(repository.write_review(db_path, eid, rating, text, today=today),
-                   messages.REVIEW_SAVED_DONE)
-    with c2:
-        if has_review and st.button(messages.REVIEW_DELETE_BUTTON, key=f"review-del-{eid}"):
-            _flash(repository.delete_review(db_path, eid, today=today), messages.REVIEW_DELETED_DONE)
+    rating = st.radio(messages.RATING_LABEL, [1, 2, 3, 4, 5], format_func=lambda n: "★" * n, horizontal=True,
+                      key=rating_key)
+    text = st.text_area(messages.REVIEW_TEXT_LABEL, max_chars=1000, key=text_key)
+    if st.session_state.get(ask_key):  # 삭제 버튼을 누른 뒤: 한 번 더 묻는다
+        st.warning(messages.REVIEW_DELETE_CONFIRM, icon="⚠️")
+        c1, c2 = st.columns(2)
+        c1.button(messages.REVIEW_DELETE_YES, key=f"review-del-yes-{eid}", type="primary",
+                  on_click=_delete_review, args=(db_path, eid, today))
+        c2.button(messages.REVIEW_DELETE_NO, key=f"review-del-no-{eid}", on_click=_set_state, args=(ask_key, False))
+    else:
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button(messages.REVIEW_SAVE_BUTTON, key=f"review-{eid}", type="primary"):
+                _flash(repository.write_review(db_path, eid, rating, text, today=today),
+                       messages.REVIEW_SAVED_DONE)
+        if has_review:
+            c2.button(messages.REVIEW_DELETE_BUTTON, key=f"review-del-{eid}", on_click=_set_state, args=(ask_key, True))
     if opened:  # 사진은 펼쳤을 때만 불러온다(기록이 많아도 처음 화면이 느려지지 않게)
         _render_photos(db_path, r, editable=True)
 
@@ -695,6 +721,11 @@ def _render_all_card(r):
 _MD_SPECIAL = str.maketrans({c: "\\" + c for c in "\\`*_[]<>#|~$"})
 
 
+def _remember_open(eid):
+    """펼침 상자를 열고 닫을 때: 그 상태를 따로 기억한다(제목이 바뀌어 상자가 새로 만들어져도 유지)."""
+    st.session_state[f"rec-open-{eid}"] = bool(st.session_state.get(f"rec-{eid}"))
+
+
 def record_label(r):
     """상태 탭의 한 줄 목록 제목. 예: '돌과 숨 · 관람일 2026-11-10 · ★★★★★ · 📷 2'.
     펼침 상자 제목은 마크다운으로 그려지므로 전시 제목의 특수 문자는 글자 그대로 보이게 한다."""
@@ -726,8 +757,11 @@ def _render_my(db_path, today):
             else:
                 st.caption(messages.RECORD_LIST_NOTE)
             for r in rows:
-                # 처음에는 한 줄 목록만, 누르면 펼쳐진다. key로 열림 상태를 기억해 저장 후 다시 그려도 닫히지 않는다.
-                box = st.expander(record_label(r), key=f"rec-{r['exhibition_id']}", on_change="rerun")
+                # 처음에는 한 줄 목록만, 누르면 펼쳐진다. 목록 줄 제목(별점·사진 수)이 바뀌면 Streamlit이 상자를
+                # 새로 만들어 접어 버리므로, 열림 상태를 따로 기억해 두었다가 그대로 펼쳐 둔다.
+                eid = r["exhibition_id"]
+                box = st.expander(record_label(r), expanded=bool(st.session_state.get(f"rec-open-{eid}")),
+                                  key=f"rec-{eid}", on_change=_remember_open, args=(eid,))
                 with box:
                     st.caption(" · ".join(x for x in (r["place"], r["region"],
                                                       f"{r['start_date']} ~ {r['end_date']}") if x))

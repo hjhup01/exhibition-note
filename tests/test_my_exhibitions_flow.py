@@ -82,8 +82,23 @@ def test_full_flow_plan_change_complete_review(db):
     at.button(key="review-1").click().run()
     assert (row(db)["review_rating"], row(db)["review_text"]) == (5, "두 번째 관람, 더 좋았다.")
 
-    # 관람평 삭제: 별점·텍스트만 비고 관람완료 탭에 남는다
+    # 저장된 관람평은 입력란에만 한 번 보인다(별도 표시 없음)
+    assert "★★★★★" not in [m.value for m in at.tabs[3].markdown]
+    assert at.text_area(key="review-text-1").value == "두 번째 관람, 더 좋았다."
+
+    # 관람평 삭제: 한 번 더 묻고 → 취소하면 그대로
     at.button(key="review-del-1").click().run()
+    assert messages.REVIEW_DELETE_CONFIRM in [w.value for w in at.warning]
+    assert row(db)["review_rating"] == 5
+    at.button(key="review-del-no-1").click().run()
+    assert not at.warning and row(db)["review_rating"] == 5
+
+    # 다시 삭제 → 확인: 별점·텍스트만 비고 관람완료 탭에 남으며, 입력란도 비워진다
+    at.button(key="review-del-1").click().run()
+    at.button(key="review-del-yes-1").click().run()
+    assert not at.exception and not at.warning
+    assert messages.REVIEW_DELETED_DONE in texts(at)
+    assert at.text_area(key="review-text-1").value == "" and at.radio(key="rating-1").value == 5
     r = row(db)
     assert (r["status"], r["review_rating"], r["review_text"]) == ("관람완료", None, None)
     assert "빛의 층위" in [e.label.split(" · ")[0] for e in at.tabs[3].expander]  # 0=전체, 3=관람완료
