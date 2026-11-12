@@ -33,7 +33,7 @@ def run_app(monkeypatch, items):
 
 
 def shown_titles(at):
-    return [b.label.removeprefix("▶ ") for b in at.button]
+    return [b.label.removeprefix("▶ ") for b in at.main.button]
 
 
 EXCLUDED = [
@@ -67,9 +67,9 @@ def test_ac1_only_valid_unended_art_exhibitions_shown(monkeypatch):
         item(title="지역장소없음", seq="300", area=..., place=...),
     ]
     at = run_app(monkeypatch, EXCLUDED + good)
-    # 첫 화면 기본 필터는 진행중·서울이라 지역이 빈 전시는 지역 '전체'에서만 보인다
+    # 첫 화면 기본 필터는 전시중·서울이라 지역이 빈 전시는 지역 '전체'에서만 보인다
     assert shown_titles(at) == ["정상", "정수seq", "정수날짜"]
-    at.sidebar.selectbox(key="region").set_value("전체").run()
+    at.sidebar.multiselect(key="regions").set_value([]).run()
     assert shown_titles(at) == ["정상", "정수seq", "정수날짜", "지역장소없음"]
 
 
@@ -79,17 +79,17 @@ def test_first_screen_defaults_to_ongoing_and_seoul(monkeypatch):
         item(title="부산진행", seq="2", area="부산"),
         item(title="서울예정", seq="3", startDate="20261201", endDate="20261231"),
     ])
-    assert at.sidebar.selectbox(key="period").value == "진행중"
-    assert at.sidebar.selectbox(key="region").value == "서울"
+    assert at.sidebar.selectbox(key="period").value == "전시중"
+    assert at.sidebar.multiselect(key="regions").value == ["서울"]
     assert shown_titles(at) == ["서울진행"]
     at.sidebar.selectbox(key="period").set_value("전체").run()
-    at.sidebar.selectbox(key="region").set_value("전체").run()
+    at.sidebar.multiselect(key="regions").set_value([]).run()
     assert shown_titles(at) == ["서울진행", "부산진행", "서울예정"]
 
 
 def test_region_default_falls_back_to_all_when_no_seoul(monkeypatch):
     at = run_app(monkeypatch, [item(title="부산진행", seq="2", area="부산")])
-    assert at.sidebar.selectbox(key="region").value == "전체"
+    assert at.sidebar.multiselect(key="regions").value == []
     assert shown_titles(at) == ["부산진행"]
 
 

@@ -132,10 +132,10 @@ def test_find_page_panes_scroll_independently_and_save_button_is_primary(app_env
 def test_pane_titles_follow_filters(app_env):
     at = AppTest.from_file(APP, default_timeout=30).run()
     titles = lambda: [h.proto.body for h in at.columns[0].get("html")] + [h.proto.body for h in at.columns[1].get("html")]
-    assert any("서울 - 진행중인 목록" in t for t in titles())
+    assert any("서울 - 전시중인 목록" in t for t in titles())
     assert any("전시 상세" in t for t in titles())
-    at.sidebar.selectbox(key="period").set_value("진행예정").run()
-    at.sidebar.selectbox(key="region").set_value("전체").run()
-    assert any("전체 - 진행예정인 목록" in t for t in titles())
+    at.sidebar.selectbox(key="period").set_value("전시예정").run()
+    at.sidebar.multiselect(key="regions").set_value([]).run()
+    assert any("전체 - 전시예정인 목록" in t for t in titles())
     at.sidebar.selectbox(key="period").set_value("전체").run()
     assert any("전체 - 전체 기간 목록" in t for t in titles())

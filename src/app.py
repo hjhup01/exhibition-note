@@ -1,5 +1,6 @@
 """미술 전시 탐색·기록 앱 화면 (streamlit run app.py). 규칙은 exhibition_app 패키지에 있다."""
 import html
+from datetime import timedelta
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -30,7 +31,8 @@ def _detail_data(exhibition):
     if cache is None or cache["id"] != exhibition.exhibition_id:
         related = search_api.load_related(exhibition.title, place=exhibition.place)
         summary = summarizer.summarize(related["web"]["items"], related["blogs"]["items"])
-        cache = {"id": exhibition.exhibition_id, "related": related, "summary": summary}
+        info = culture_api.fetch_detail(exhibition.exhibition_id)
+        cache = {"id": exhibition.exhibition_id, "related": related, "summary": summary, "info": info}
         st.session_state["detail_cache"] = cache
     return cache
 
@@ -115,6 +117,7 @@ def _render_google_account(settings):
 
 DEFAULT_PERIOD = messages.PERIOD_ONGOING  # 처음 화면의 기간 필터
 DEFAULT_REGION = "서울"                    # 처음 화면의 지역 필터(목록에 서울이 없으면 '전체')
+PAST_DEFAULT_DAYS = 90                     # '지난 전시' 기본 기간: 어제까지 90일
 PANE_HEIGHT = 720  # 전시 찾기의 목록 칸·상세 칸 높이(px). 두 칸은 각자 따로 스크롤된다.
 SAVE_BUTTON_COLOR = "#1a73e8"
 SAVE_BUTTON_HOVER = "#1557b0"
@@ -158,10 +161,78 @@ div[class*="st-key-save-"] button:disabled {{ opacity: 0.45; }}
 """
 
 
-def list_pane_title(region, period):
-    """목록 칸 제목. 예: '서울 - 진행중인 목록', '전체 - 진행예정인 목록', '부산 - 전체 기간 목록'."""
-    period_text = {messages.PERIOD_ONGOING: "진행중인", messages.PERIOD_UPCOMING: "진행예정인"}.get(period, "전체 기간")
-    return f"{region} - {period_text} 목록"
+def _region_text(region, districts=None):
+    """'서울' / '서울(종로구·중구)' / '서울(종로구 외 2)' / '서울·부산' / '전체'."""
+    regions = [region] if isinstance(region, str) else list(region or [])
+    regions = [r for r in regions if r and r != messages.REGION_ALL]
+    if not regions:
+        return messages.REGION_ALL
+    parts = []
+    for r in regions:
+        ds = (districts or {}).get(r) or []
+        if not ds:
+            parts.append(r)
+        elif len(ds) <= 2:
+            parts.append(f"{r}({'·'.join(ds)})")
+        else:
+            parts.append(f"{r}({ds[0]} 외 {len(ds) - 1})")
+    return "·".join(parts)
+
+
+def list_pane_title(region, period, districts=None, past_range=None):
+    """목록 칸 제목. 예: '서울 - 전시중인 목록', '서울(종로구)·부산 - 전시예정인 목록',
+    '전체 - 지난 전시 목록 (2026-08-01 ~ 2026-11-11)', '부산 - 전체 기간 목록'."""
+    where = _region_text(region, districts)
+    if period == messages.PERIOD_PAST:
+        span = f" ({past_range[0]} ~ {past_range[1]})" if past_range else ""
+        return f"{where} - {messages.PERIOD_PAST} 목록{span}"
+    period_text = {messages.PERIOD_ONGOING: "전시중인", messages.PERIOD_UPCOMING: "전시예정인"}.get(period, "전체 기간")
+    return f"{where} - {period_text} 목록"
+
+
+_FILTER_KEYS = ("page", "period", "regions", "keyword", "art-only", "past-range", "selected_id", "detail_cache")
+
+
+def _go_home():
+    """처음 화면으로: 페이지·필터·선택을 기본값으로 되돌린다(로그인·대화 기록은 유지)."""
+    for k in list(st.session_state.keys()):
+        if k in _FILTER_KEYS or str(k).startswith("districts-"):
+            del st.session_state[k]
+
+
+def _load_past(start, end):
+    """지난 전시(기간 조회 API). 같은 기간은 세션 동안 다시 부르지 않는다. (목록 또는 None, 잘림 여부)"""
+    cache = st.session_state.setdefault("past_cache", {})
+    key = (start.isoformat(), end.isoformat())
+    if key not in cache:
+        try:
+            cache[key] = culture_api.fetch_exhibitions_between(start, end)
+        except culture_api.CultureApiError:
+            cache[key] = (None, False)
+    return cache[key]
+
+
+def _period_tag(e, today):
+    t = today.isoformat()
+    if e.end_date < t:
+        return messages.PERIOD_ENDED_TAG
+    return messages.PERIOD_ONGOING if e.start_date <= t else messages.PERIOD_UPCOMING
+
+
+def _render_detail_info(info):
+    """요금·주소·문의·안내 링크와 지도(좌표가 있을 때)."""
+    if not info:
+        st.caption(messages.DETAIL_NO_INFO)
+        return
+    for label, value in ((messages.DETAIL_PRICE, info.get("price")), (messages.DETAIL_ADDRESS, info.get("address")),
+                         (messages.DETAIL_PHONE, info.get("phone"))):
+        st.write(f"**{label}** · {value or messages.DETAIL_INFO_MISSING}")
+    link = info.get("url") or info.get("place_url")
+    if link:
+        st.markdown(f"[{messages.DETAIL_LINK}]({link})")
+    if info.get("lat") is not None and info.get("lon") is not None:
+        import pandas as pd
+        st.map(pd.DataFrame({"lat": [info["lat"]], "lon": [info["lon"]]}), zoom=14, height=220)
 
 
 def _parse_iso(value):
@@ -363,6 +434,7 @@ def main():
                 else messages.PAGE_MY)
 
     st.sidebar.title(messages.APP_TITLE)
+    st.sidebar.button(messages.HOME_BUTTON, key="home", icon="🏠", on_click=_go_home, use_container_width=True)
     if gsettings:
         _render_google_account(gsettings)
     page = st.sidebar.radio("페이지", [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT],
@@ -379,18 +451,41 @@ def main():
                 st.write(st.session_state.pop("flash"))
             st.write(store_message)
         return
-    period_options = [messages.PERIOD_ALL, messages.PERIOD_ONGOING, messages.PERIOD_UPCOMING]
+    period_options = [messages.PERIOD_ALL, messages.PERIOD_ONGOING, messages.PERIOD_UPCOMING, messages.PERIOD_PAST]
     period = st.sidebar.selectbox(messages.FILTER_PERIOD_LABEL, period_options,
                                   index=period_options.index(DEFAULT_PERIOD), key="period")
-    region_options = filters.region_options(base)
-    region = st.sidebar.selectbox(
-        messages.FILTER_REGION_LABEL, region_options,
-        index=region_options.index(DEFAULT_REGION) if DEFAULT_REGION in region_options else 0,
-        key="region")
-    keyword = st.sidebar.text_input(messages.FILTER_KEYWORD_LABEL)
+    past_range, past_note = None, None
+    if period == messages.PERIOD_PAST:
+        rng = st.sidebar.date_input(messages.FILTER_PAST_RANGE_LABEL,
+                                    value=(today - timedelta(days=PAST_DEFAULT_DAYS), today - timedelta(days=1)),
+                                    max_value=today - timedelta(days=1), key="past-range", format="YYYY-MM-DD")
+        if isinstance(rng, (list, tuple)) and len(rng) == 2:
+            past_range = (rng[0], rng[1])
+            past, truncated = _load_past(*past_range)
+            exhibitions = past
+            base = [e for e in (past or []) if e.end_date < today.isoformat()]
+            past_note = messages.PAST_TRUNCATED if truncated else None
+        else:
+            base, past_note = [], messages.PAST_RANGE_INCOMPLETE
+    region_options = [r for r in filters.region_options(base) if r != messages.REGION_ALL]
+    if "regions" in st.session_state:  # 목록이 바뀌어 사라진 지역은 선택에서 뺀다
+        st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
+    regions = st.sidebar.multiselect(messages.FILTER_REGION_LABEL, region_options,
+                                     default=[DEFAULT_REGION] if DEFAULT_REGION in region_options else [],
+                                     placeholder=messages.FILTER_REGION_PLACEHOLDER, key="regions")
+    districts = {}
+    if DEFAULT_REGION in regions:
+        d_key = f"districts-{DEFAULT_REGION}"
+        d_options = filters.district_options(base, DEFAULT_REGION)
+        if d_key in st.session_state:
+            st.session_state[d_key] = [d for d in st.session_state[d_key] if d in d_options]
+        districts[DEFAULT_REGION] = st.sidebar.multiselect(
+            messages.FILTER_DISTRICT_LABEL, d_options, placeholder=messages.FILTER_DISTRICT_PLACEHOLDER, key=d_key)
+    keyword = st.sidebar.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword")
     art_only = st.sidebar.checkbox(messages.FILTER_ART_ONLY_LABEL, key="art-only")
 
-    shown = filters.filter_exhibitions(base, today, period, region, keyword, art_only=art_only)
+    shown = filters.filter_exhibitions(base, today, messages.PERIOD_ALL if period == messages.PERIOD_PAST else period,
+                                       regions, keyword, art_only=art_only, districts=districts)
     selected_id = st.session_state.get("selected_id")
     selected = next((e for e in shown if e.exhibition_id == selected_id), None)
 
@@ -400,12 +495,14 @@ def main():
         st.write(st.session_state.pop("flash"))
     left_col, right_col = st.columns(2)
     # 칸 제목은 스크롤 영역 밖(위)에 두어 항상 보이게 한다
-    left_col.html(f'<div class="pane-title">{html.escape(list_pane_title(region, period))}</div>')
+    left_col.html(f'<div class="pane-title">{html.escape(list_pane_title(regions, period, districts, past_range))}</div>')
     right_col.html(f'<div class="pane-title">{html.escape(messages.DETAIL_PANE_TITLE)}</div>')
     # 두 칸을 고정 높이 컨테이너로 감싸 각자 스크롤되게 한다(목록을 내려도 상세는 제자리).
     left = left_col.container(height=PANE_HEIGHT, key="list-pane")
     right = right_col.container(height=PANE_HEIGHT, key="detail-pane")
     with left:
+        if past_note:
+            st.caption(past_note)
         if exhibitions is None:
             st.write(messages.CULTURE_FAILED)
         elif not shown:
@@ -415,8 +512,8 @@ def main():
             if st.button(label, key=f"pick-{e.exhibition_id}"):
                 st.session_state["selected_id"] = e.exhibition_id
                 selected = e
-            state = messages.PERIOD_ONGOING if e.start_date <= today.isoformat() else messages.PERIOD_UPCOMING
-            st.caption(" · ".join(x for x in (e.place, e.region, _period_text(e), state) if x))
+            where = " ".join(x for x in (e.region, e.district) if x)
+            st.caption(" · ".join(x for x in (e.place, where, _period_text(e), _period_tag(e, today)) if x))
     with right:
         if selected is None:
             st.write(messages.SELECT_EXHIBITION)
@@ -429,6 +526,7 @@ def main():
                          type="primary", icon="⭐", disabled=not db_ok):
                 _flash(repository.save(db_path, selected), messages.SAVED_DONE)
             data = _detail_data(selected)
+            _render_detail_info(data.get("info"))
             if data["summary"]:
                 st.subheader(messages.SUMMARY_HEADING)
                 st.write(data["summary"])

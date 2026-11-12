@@ -56,7 +56,7 @@ def test_ac3_messages_are_exact():
 @pytest.mark.parametrize("exc", [requests.Timeout("k"), requests.ConnectionError(), RuntimeError("x")])
 def test_ac3_exception_shows_failure(monkeypatch, exc):
     at = run_app(monkeypatch, exc=exc)
-    assert FAILED in texts(at) and not at.button
+    assert FAILED in texts(at) and not at.main.button
 
 
 @pytest.mark.parametrize("status", [400, 500, 503])
@@ -86,7 +86,7 @@ def test_ac3_unparseable_or_bad_envelope_shows_failure(monkeypatch, text):
 ])
 def test_ac3_empty_items_shows_no_result(monkeypatch, text):
     at = run_app(monkeypatch, Resp(text))
-    assert messages.NO_RESULT in texts(at) and FAILED not in texts(at) and not at.button
+    assert messages.NO_RESULT in texts(at) and FAILED not in texts(at) and not at.main.button
 
 
 def test_ac3_xml_single_item_is_one_row(monkeypatch):
@@ -94,13 +94,13 @@ def test_ac3_xml_single_item_is_one_row(monkeypatch):
            "<realmName>전시</realmName><area>서울</area><place>관</place>"
            "<startDate>20261001</startDate><endDate>20261231</endDate></item></items></body></response>")
     at = run_app(monkeypatch, Resp(xml))
-    assert [b.label for b in at.button] == ["하나"]
+    assert [b.label for b in at.main.button] == ["하나"]
 
 
 def test_ac3_filter_matching_nothing_shows_no_result(monkeypatch):
     at = run_app(monkeypatch, Resp(jbody([art()])))
     at.sidebar.text_input[0].set_value("없는제목").run()
-    assert not at.exception and messages.NO_RESULT in texts(at) and not at.button
+    assert not at.exception and messages.NO_RESULT in texts(at) and not at.main.button
 
 
 def test_ac3_only_non_art_items_shows_no_result(monkeypatch):

@@ -14,6 +14,8 @@
 - **Day 7: 평가 (RAGAS · LLM-as-Judge)** — 인-아웃 세트 18건을 도구 호출 검사 + LLM-as-Judge로 1·2차 채점하고, RAGAS 4개 지표를 계산한다. (`evaluation/`)
 
 ## 아키텍처
+화면 기능: 🏠 처음 화면 버튼 · 기간(전체/전시중/전시예정/지난 전시+기간 지정) · 지역 여러 개 선택 + 서울 구 단위 · 미술관·갤러리 필터 · 전시 상세(요금·주소·문의·지도·관련 글·AI 요약) · 내 전시(관심→관람예정→관람완료, 실제 관람일, 별점·관람평) · AI 도우미(에이전트 대화).
+
 ```
 사용자 ─┬─ Streamlit 화면 (src/app.py): 전시 찾기 · 내 전시 · AI 도우미
         └─ POST /query (src/api.py, FastAPI)
@@ -82,6 +84,7 @@ docker build -t exhibition-note . && docker run --rm -p 8000:8000 --env-file .en
 
 - 1차 (Day 9 종료): **14 / 18** 통과 (78%) — guardrail 3/3, negative 4/4, positive 4/7, edge 3/4
 - 2차 (Day 10 개선 후): **18 / 18** 통과 (100%) — 전 분류 통과
+- 회귀 확인 (화면 기능 추가 후, 최종 코드): **18 / 18** — [round3_report.md](evaluation/round3_report.md)
 - 개선폭: **+4 건** (주요 개선 사항: 답변이 언급한 전시의 근거가 contexts에서 잘리던 문제 수정 · `search_exhibitions`에 장소(`place`) 조건 추가 · 후기 질문은 RAG(`retrieve_docs`) 우선 · 문장부호가 섞인 제목 키워드 일치 · 기간 표기를 근거 문서 그대로 쓰도록 지시)
 - 공정성: 2차 도중 심판(LLM-as-Judge)이 항목에 없는 조건(URL)을 요구하거나 근거와 결론이 어긋나는 문제를 발견해 심판 프롬프트를 고쳤다. **1차 답변도 같은 새 심판으로 다시 채점**했고 결과는 그대로 14/18이었다. 중간 실행 기록은 `evaluation/round2_interim_report.md`.
 - 보고서: [round1_report.md](evaluation/round1_report.md) · [round2_report.md](evaluation/round2_report.md)

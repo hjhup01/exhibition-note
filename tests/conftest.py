@@ -11,3 +11,10 @@ import pytest
 def _no_google_from_dotenv(monkeypatch):
     for key in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"):
         monkeypatch.setenv(key, "")
+
+
+@pytest.fixture(autouse=True)
+def _no_real_detail_api(monkeypatch):
+    """전시 상세(요금·주소) 조회는 실제 API를 부르지 않게 한다. 상세를 시험하는 테스트는 직접 바꿔 넣는다."""
+    from exhibition_app import culture_api
+    monkeypatch.setattr(culture_api, "fetch_detail", lambda *a, **k: None)

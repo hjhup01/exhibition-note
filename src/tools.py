@@ -18,7 +18,8 @@ from retriever import get_retriever
 
 _CACHE = {"at": 0.0, "items": None}
 CACHE_SECONDS = 600
-PERIODS = {"진행중": messages.PERIOD_ONGOING, "진행예정": messages.PERIOD_UPCOMING, "전체": messages.PERIOD_ALL}
+PERIODS = {"전시중": messages.PERIOD_ONGOING, "진행중": messages.PERIOD_ONGOING,
+           "전시예정": messages.PERIOD_UPCOMING, "진행예정": messages.PERIOD_UPCOMING, "전체": messages.PERIOD_ALL}
 
 
 def _exhibitions():
@@ -43,13 +44,13 @@ def _exhibition_context(e):
 
 
 @tool
-def search_exhibitions(region: str = "", period: str = "진행중", keyword: str = "", place: str = "",
+def search_exhibitions(region: str = "", period: str = "전시중", keyword: str = "", place: str = "",
                        art_only: bool = False, limit: int = 8) -> dict:
     """국내 전시 목록을 조회한다(공공데이터). 전시를 추천·검색하거나 기간·지역을 확인할 때 쓴다.
 
     Args:
         region: 시·도 짧은 이름(예: 서울, 부산, 경기). 비우면 전국.
-        period: '진행중' | '진행예정' | '전체'.
+        period: '전시중' | '전시예정' | '전체'.
         keyword: 전시 '제목'에 들어갈 낱말(예: 모네, 사진). 비우면 조건 없음.
         place: 전시 '장소·기관' 이름에 들어갈 낱말(예: 국립현대미술관, 리움). 기관을 묻는 질문은 keyword가 아니라 place로 찾는다.
         art_only: True면 장소가 미술관·갤러리인 전시만.
@@ -67,7 +68,8 @@ def search_exhibitions(region: str = "", period: str = "진행중", keyword: str
     shown = shown[:max(1, min(int(limit or 8), 20))]
     return {"ok": True, "source": source, "today": today.isoformat(), "count": len(shown),
             "exhibitions": [{"exhibition_id": e.exhibition_id, "title": e.title, "place": e.place,
-                             "region": e.region, "start_date": e.start_date, "end_date": e.end_date}
+                             "region": e.region, "district": e.district, "start_date": e.start_date,
+                             "end_date": e.end_date}
                             for e in shown],
             "contexts": [_exhibition_context(e) for e in shown]}
 

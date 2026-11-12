@@ -46,19 +46,33 @@ def keyword_matches(kw, title) -> bool:
     return any(words) and all(w in t for w in words if w)
 
 
+def district_options(base, region) -> list:
+    """해당 시·도 전시의 시·군·구 목록(가나다순). 예: 서울 → [강남구, 종로구, ...]"""
+    return sorted({e.district for e in base if e.region == region and getattr(e, "district", "")})
+
+
 def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, keyword="",
-                       art_only=False) -> list:
+                       art_only=False, districts=None) -> list:
+    """region: '전체' 또는 시·도 하나(str) 또는 여러 개(list, 비면 전체).
+    districts: {시·도: [구, ...]} — 그 시·도는 고른 구의 전시만 남긴다(비어 있으면 그 시·도 전체)."""
     t = today.isoformat()
     kw = normalize_keyword(keyword)
+    regions = None if region in (REGION_ALL, None, "") else (
+        set(region) if isinstance(region, (list, tuple, set)) else {region})
+    if regions is not None and not regions:
+        regions = None
+    districts = {k: set(v) for k, v in (districts or {}).items() if v}
     out = []
     for e in base:
+        if regions is not None and e.region not in regions:
+            continue
+        if e.region in districts and getattr(e, "district", "") not in districts[e.region]:
+            continue
         if art_only and not is_art_venue(e.place):
             continue
         if period == PERIOD_ONGOING and not (e.start_date <= t <= e.end_date):
             continue
         if period == PERIOD_UPCOMING and not e.start_date > t:
-            continue
-        if region != REGION_ALL and e.region != region:
             continue
         if kw and not keyword_matches(kw, e.title):
             continue

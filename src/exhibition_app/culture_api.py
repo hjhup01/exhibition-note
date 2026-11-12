@@ -34,6 +34,7 @@ class Exhibition:
     place: str
     start_date: str  # YYYY-MM-DD
     end_date: str
+    district: str = ""  # 시·군·구(문화포털 sigungu). 예: 종로구
 
 
 def _required_text(value):
@@ -102,7 +103,7 @@ def normalize_item(item):
         return None
     return Exhibition(exhibition_id, title, EXHIBITION_CATEGORY,
                       normalize_region(item.get("area")), _optional_text(item.get("place")),
-                      start, end)
+                      start, end, _optional_text(item.get("sigungu")))
 
 
 def _json_items(data):
@@ -165,6 +166,76 @@ def _get_page(http_get, key, page):
         raise
     except Exception:  # 예외 문자열에 URL(serviceKey)이 들어 있을 수 있어 버린다
         raise CultureApiError("request failed") from None
+
+
+PERIOD_URL = "https://apis.data.go.kr/B553457/cultureinfo/period2"
+DETAIL_URL = "https://apis.data.go.kr/B553457/cultureinfo/detail2"
+PERIOD_PAGE_SIZE = 1000
+PERIOD_MAX_PAGES = 15
+SERVICE_TP_SHOW_EXHIBITION = "A"   # period2의 serviceTp=A는 공연+전시. 전시만 normalize_item에서 남긴다
+
+
+def _call(http_get, url, params):
+    try:
+        resp = http_get(url, params=params, timeout=TIMEOUT_SECONDS)
+        if resp.status_code != 200:
+            raise CultureApiError("http status")
+        return resp.text
+    except CultureApiError:
+        raise
+    except Exception:  # 예외 문자열에 URL(serviceKey)이 들어 있을 수 있어 버린다
+        raise CultureApiError("request failed") from None
+
+
+def fetch_exhibitions_between(start, end, http_get=None, env=None) -> list:
+    """기간 [start, end](date)와 겹치는 전시를 기간 조회 API(period2)로 가져온다. 지난 전시 검색용.
+    한 쪽 1000건, 최대 15쪽(1만5천 건)까지. 실패하면 CultureApiError. (목록, 잘렸는지 여부)"""
+    import requests
+    http_get = http_get or requests.get
+    env = os.environ if env is None else env
+    key = env.get("CULTURE_API_KEY", "")
+    result, seen, truncated = [], set(), False
+    for page in range(1, PERIOD_MAX_PAGES + 1):
+        raw = _raw_items(_call(http_get, PERIOD_URL, {
+            "serviceKey": key, "PageNo": page, "numOfrows": PERIOD_PAGE_SIZE,
+            "from": start.strftime("%Y%m%d"), "to": end.strftime("%Y%m%d"),
+            "serviceTp": SERVICE_TP_SHOW_EXHIBITION}))
+        for e in map(normalize_item, raw):
+            if e and e.exhibition_id not in seen:
+                seen.add(e.exhibition_id)
+                result.append(e)
+        if len(raw) < PERIOD_PAGE_SIZE:
+            break
+    else:
+        truncated = True
+    return result, truncated
+
+
+def fetch_detail(exhibition_id, http_get=None, env=None):
+    """전시 상세(detail2): 요금·주소·문의·링크·좌표. 실패하거나 항목이 없으면 None(예외를 던지지 않는다)."""
+    import requests
+    http_get = http_get or requests.get
+    env = os.environ if env is None else env
+    try:
+        raw = _raw_items(_call(http_get, DETAIL_URL, {"serviceKey": env.get("CULTURE_API_KEY", ""),
+                                                      "seq": exhibition_id}))
+    except Exception:
+        return None
+    if not raw or not isinstance(raw[0], dict):
+        return None
+    d = raw[0]
+
+    def num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    lat, lon = num(d.get("gpsY")), num(d.get("gpsX"))
+    ok_coord = lat is not None and lon is not None and 33 <= lat <= 39 and 124 <= lon <= 132  # 국내 범위만 지도에 표시
+    return {"price": _optional_text(d.get("price")), "address": _optional_text(d.get("placeAddr")),
+            "phone": _optional_text(d.get("phone")), "url": _optional_text(d.get("url")),
+            "place_url": _optional_text(d.get("placeUrl")),
+            "lat": lat if ok_coord else None, "lon": lon if ok_coord else None}
 
 
 def fetch_exhibitions(http_get=None, env=None) -> list:

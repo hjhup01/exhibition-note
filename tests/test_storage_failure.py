@@ -62,7 +62,7 @@ def test_ac11_find_page_shows_message_and_disables_save(broken_db):
 
 def test_ac11_filters_still_work(broken_db):
     at = run()
-    at.sidebar.selectbox[1].set_value("부산").run()
+    at.sidebar.multiselect(key="regions").set_value(["부산"]).run()
     assert not at.exception
     keys = [b.key for b in at.button]
     assert "pick-2" in keys and "pick-1" not in keys

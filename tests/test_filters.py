@@ -18,12 +18,12 @@ def ids(rows):
 def test_ac2_ongoing_inclusive_bounds():
     rows = [ex(1, start="2026-11-11", end="2026-12-01"), ex(2, start="2026-10-01", end="2026-11-11"),
             ex(3, start="2026-11-12", end="2026-12-01"), ex(4, start="2026-10-01", end="2026-11-10")]
-    assert ids(filter_exhibitions(base_set(rows, TODAY), TODAY, period="진행중")) == ["1", "2"]
+    assert ids(filter_exhibitions(base_set(rows, TODAY), TODAY, period="전시중")) == ["1", "2"]
 
 
 def test_ac2_upcoming_includes_tomorrow_excludes_today():
     rows = [ex(1, start="2026-11-12", end="2026-12-01"), ex(2, start="2026-11-11", end="2026-12-01")]
-    assert ids(filter_exhibitions(rows, TODAY, period="진행예정")) == ["1"]
+    assert ids(filter_exhibitions(rows, TODAY, period="전시예정")) == ["1"]
 
 
 def test_ac2_all_period_is_whole_base_set_and_excludes_ended():
@@ -65,7 +65,7 @@ def test_ac2_keyword_only_first_50_codepoints():
 def test_ac2_all_filters_and():
     rows = [ex(1, title="모네", region="서울"), ex(2, title="모네", region="부산"),
             ex(3, title="모네", region="서울", start="2026-12-01"), ex(4, title="고흐", region="서울")]
-    assert ids(filter_exhibitions(rows, TODAY, "진행중", "서울", "모네")) == ["1"]
+    assert ids(filter_exhibitions(rows, TODAY, "전시중", "서울", "모네")) == ["1"]
 
 
 def test_ac2_keyword_max_length_constant_is_50_and_used():
