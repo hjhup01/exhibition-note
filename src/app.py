@@ -30,8 +30,9 @@ def _detail_data(exhibition):
     """선택이 바뀔 때만 카카오 검색·LLM을 호출하고 선택이 유지되는 동안 session_state에 캐시한다."""
     cache = st.session_state.get("detail_cache")
     if cache is None or cache["id"] != exhibition.exhibition_id:
-        related = search_api.load_related(exhibition.title, place=exhibition.place)
-        summary = summarizer.summarize(related["web"]["items"], related["blogs"]["items"])
+        # 제목 핵심어가 들어 있는 글만 보여 주고 요약한다(엉뚱한 전시 글이 요약되지 않게)
+        related = search_api.load_related(exhibition.title, place=exhibition.place, only_relevant=True)
+        summary = summarizer.summarize(related["web"]["items"], related["blogs"]["items"], title=exhibition.title)
         info = culture_api.fetch_detail(exhibition.exhibition_id)
         cache = {"id": exhibition.exhibition_id, "related": related, "summary": summary, "info": info}
         st.session_state["detail_cache"] = cache

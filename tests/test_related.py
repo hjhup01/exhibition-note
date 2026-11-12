@@ -175,3 +175,21 @@ def test_ac4_error_message_has_no_key():
     with pytest.raises(RelatedApiError) as e:
         fetch_related("web", "q", get=get, env={"KAKAO_REST_API_KEY": "SECRETVAL"})
     assert "SECRETVAL" not in str(e.value)
+
+
+def test_only_relevant_drops_posts_about_other_exhibitions():
+    """'기록으로 산책하기_서울의 공원'을 검색해도 다른 전시(서도호 개인전) 안내 글은 빼고, 제목 핵심어가 있는 글만 남긴다."""
+    docs = [doc(title="국립현대미술관 서울 서도호 개인전 관람 가이드", url="http://a"),
+            doc(title="가을 단풍 명소 BEST10", url="http://b"),
+            doc(title="기록으로 산책하기 전시 후기", url="http://c")]
+    get = lambda u, **kw: Resp({"documents": docs})
+    rel = load_related("기록으로 산책하기_서울의 공원", place="서울문화재단 본관", get=get, env={}, only_relevant=True)
+    assert [i["title"] for i in rel["web"]["items"]] == ["기록으로 산책하기 전시 후기"]
+    none = load_related("기록으로 산책하기_서울의 공원", get=lambda u, **kw: Resp({"documents": docs[:2]}),
+                        env={}, only_relevant=True)
+    assert none["web"]["items"] == [] and none["web"]["message"] == search_api.MSG_EMPTY
+
+
+def test_query_splits_underscore_words():
+    assert search_api.build_query("기록으로 산책하기_서울의 공원", "서울문화재단 본관") == \
+        "기록으로 산책하기 서울의 공원 서울문화재단 본관"

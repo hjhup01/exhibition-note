@@ -102,3 +102,11 @@ def test_ac5_default_invoke_passes_config_to_chatbedrock(monkeypatch):
     assert summarize(items(1), [], env={"BEDROCK_MODEL_ID": "us.anthropic.claude-x"}) == "요약"
     assert seen["model_id"] == "us.anthropic.claude-x"
     assert seen["config"].read_timeout == 10
+
+
+def test_summary_prompt_names_the_exhibition():
+    """요약에 전시 이름을 알려 주고, 다른 전시 이야기는 빼라고 지시한다."""
+    from exhibition_app import summarizer
+    system, user = summarizer.build_messages(items(1), [], title="기록으로 산책하기_서울의 공원")
+    assert "전시 이름: 기록으로 산책하기_서울의 공원" in user
+    assert "그 전시에 관한 내용만" in system and summarizer.NO_MATCH in system

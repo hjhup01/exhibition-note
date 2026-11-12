@@ -64,17 +64,53 @@ def normalize_related(doc):
             "description": clean_text(doc.get("contents"))}
 
 
-def parse_related(payload):
-    """응답 dict에서 정규화·pub_date 내림차순(동률은 응답 순서)·앞 5건. 해석 불가면 RelatedApiError."""
+# 제목에서 이 낱말들만으로는 '같은 전시'라고 볼 수 없다(어느 전시 글에나 나온다)
+_GENERIC_WORDS = {"전시", "전시회", "특별전", "기획전", "개인전", "단체전", "초대전", "상설전", "상설", "순회전시",
+                  "특별전시", "기획전시", "상설전시", "展", "온라인", "재개관"}
+_SEGMENT_SPLIT = re.compile(r"[\[\]()<>《》〈〉「」『』【】_:：,，·|/~\-–—!?'\"“”‘’]+")
+_NON_WORD = re.compile(r"[^0-9A-Za-z가-힣一-龥]+")
+
+
+def _squash(text):
+    """비교용: 공백·기호를 빼고 소문자로."""
+    return _NON_WORD.sub("", str(text or "")).lower()
+
+
+def title_keys(title):
+    """글이 이 전시에 관한 것인지 볼 때 찾을 핵심어. 제목을 기호로 나눈 구절과 낱말 중 4글자 이상(일반어 제외).
+    예: '기록으로 산책하기_서울의 공원' → 기록으로산책하기, 서울의공원, 기록으로, 산책하기.
+    4글자 이상이 하나도 없으면(짧은 제목) 제목 전체."""
+    keys = []
+    for seg in _SEGMENT_SPLIT.split(str(title or "")):
+        for cand in [seg] + seg.split():
+            k = _squash(cand)
+            if len(k) >= 4 and k not in _GENERIC_WORDS and k not in keys:
+                keys.append(k)
+    if not keys and _squash(title):
+        keys.append(_squash(title))
+    return keys
+
+
+def is_relevant(item, title):
+    """글 제목·본문에 전시 제목의 핵심어가 하나라도 들어 있으면 관련 글로 본다."""
+    text = _squash(f"{item.get('title', '')} {item.get('description', '')}")
+    return any(k in text for k in title_keys(title))
+
+
+def parse_related(payload, title=None):
+    """응답 dict에서 정규화·(title이 있으면 관련 글만)·pub_date 내림차순(동률은 응답 순서)·앞 5건.
+    해석 불가면 RelatedApiError."""
     docs = payload.get("documents") if isinstance(payload, dict) else None
     if not isinstance(docs, list):
         raise RelatedApiError("documents missing or not an array")
     normalized = [n for n in map(normalize_related, docs) if n]
+    if title:  # 검색어와 느슨하게만 맞는 엉뚱한 글(다른 전시 안내·여행 블로그 등)을 뺀다
+        normalized = [n for n in normalized if is_relevant(n, title)]
     normalized.sort(key=lambda n: n["pub_date"], reverse=True)  # 안정 정렬
     return normalized[:MAX_ITEMS]
 
 
-def fetch_related(kind, query, get=None, env=None):
+def fetch_related(kind, query, get=None, env=None, title=None):
     """kind('web'|'blog') 검색(10초 제한, 재시도 없음). 실패 시 RelatedApiError."""
     get = get or requests.get
     env = os.environ if env is None else env
@@ -89,13 +125,13 @@ def fetch_related(kind, query, get=None, env=None):
         raise
     except Exception as e:  # 타임아웃·네트워크·JSON 오류 모두 실패 처리(예외 문자열은 버린다)
         raise RelatedApiError(type(e).__name__) from None
-    return parse_related(payload)
+    return parse_related(payload, title=title)
 
 
-def load_section(kind, query, get=None, env=None):
+def load_section(kind, query, get=None, env=None, title=None):
     """한 영역의 표시 상태: {'items': [...], 'message': str|None, 'failed': bool}. 예외를 던지지 않는다."""
     try:
-        items = fetch_related(kind, query, get=get, env=env)
+        items = fetch_related(kind, query, get=get, env=env, title=title)
     except Exception:
         return {"items": [], "message": MSG_FAILED, "failed": True}
     return {"items": items, "message": None if items else MSG_EMPTY, "failed": False}
@@ -103,14 +139,17 @@ def load_section(kind, query, get=None, env=None):
 
 def build_query(title, place=""):
     """검색어 = '전시 제목 장소'. 제목만으로는 일반 낱말(예: 수직정원)이 엉뚱한 글을 끌어와 장소를 붙인다."""
-    return " ".join(p.strip() for p in (title or "", place or "") if p and p.strip())
+    title = (title or "").replace("_", " ")  # '기록으로 산책하기_서울의 공원'처럼 _로 붙은 낱말을 나눈다
+    return " ".join(p.strip() for p in (title, place or "") if p and p.strip())
 
 
-def load_related(title, place="", get=None, env=None):
-    """'제목 + 장소'로 웹문서·블로그를 정확도순으로 받아(최신순 재정렬은 parse_related) 매번 새로 조회한다."""
+def load_related(title, place="", get=None, env=None, only_relevant=False):
+    """'제목 + 장소'로 웹문서·블로그를 정확도순으로 받아(최신순 재정렬은 parse_related) 매번 새로 조회한다.
+    only_relevant=True면 전시 제목의 핵심어가 들어 있는 글만 남긴다(화면·요약용)."""
     query = build_query(title, place)
-    return {"web": load_section("web", query, get=get, env=env),
-            "blogs": load_section("blog", query, get=get, env=env)}
+    keep = title if only_relevant else None
+    return {"web": load_section("web", query, get=get, env=env, title=keep),
+            "blogs": load_section("blog", query, get=get, env=env, title=keep)}
 
 
 _MD_SPECIAL = re.compile(r"([\\`*_{}\[\]<>()#+!|~$:])")
