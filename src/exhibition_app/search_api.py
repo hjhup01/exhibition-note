@@ -179,3 +179,11 @@ def render_section(st, heading, section):
 def render_related(st, related):
     render_section(st, messages.WEB_HEADING, related["web"])
     render_section(st, messages.BLOG_HEADING, related["blogs"])
+
+
+def kakao_map_links(name, lat, lon):
+    """(카카오맵에서 보기 주소, 길찾기 주소). 장소 이름은 주소에 넣을 수 있게 인코딩한다(쉼표는 구분자라 뺀다)."""
+    from urllib.parse import quote
+    label = quote((name or "전시 장소").replace(",", " "), safe="")
+    return (f"https://map.kakao.com/link/map/{label},{lat},{lon}",
+            f"https://map.kakao.com/link/to/{label},{lat},{lon}")

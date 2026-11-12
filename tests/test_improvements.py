@@ -153,3 +153,26 @@ def test_entrypoint_drops_stale_project_modules_when_source_changes(monkeypatch)
     finally:
         sys.modules.clear()
         sys.modules.update(saved)
+
+
+# ---------- 지도: 장소 이름·주소, 지명이 보이는 지도, 카카오맵 링크 ----------
+
+def test_kakao_map_links_encode_place_name():
+    from exhibition_app import search_api
+    view, route = search_api.kakao_map_links("국립현대미술관, 서울관", 37.58, 126.98)
+    assert view.startswith("https://map.kakao.com/link/map/") and view.endswith(",37.58,126.98")
+    assert route.startswith("https://map.kakao.com/link/to/")
+    assert "," not in view.split("/link/map/")[1].rsplit(",", 2)[0]  # 이름 안의 쉼표는 빠진다
+
+
+def test_detail_map_shows_place_address_and_kakao_links(env, monkeypatch):
+    monkeypatch.setattr(culture_api, "fetch_detail", lambda *a, **k: {
+        "price": "무료", "address": "서울 종로구 삼청로 30", "phone": "", "url": "", "place_url": "",
+        "lat": 37.58, "lon": 126.98})
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.button(key="pick-1").click().run()
+    assert not at.exception
+    assert len(at.get("deck_gl_json_chart")) == 1
+    assert "📍 갤러리 · 서울 종로구 삼청로 30" in [c.value for c in at.main.caption]
+    links = " ".join(m.value for m in at.main.markdown)
+    assert "map.kakao.com/link/map/" in links and "map.kakao.com/link/to/" in links

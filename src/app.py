@@ -412,7 +412,34 @@ def badges_html(e, today):
     return out
 
 
-def _render_detail_info(info):
+MAP_ZOOM = 15
+MAP_HEIGHT = 260
+
+
+def _render_map(place, info):
+    """위치: '📍 장소 · 주소' 한 줄, 지명이 보이는 지도에 금색 핀(마우스를 올리면 장소·주소), 카카오맵 보기·길찾기 링크.
+    (핀 위 글자(TextLayer)는 Streamlit 지도에서 그려지지 않아 쓰지 않는다)"""
+    lat, lon = info["lat"], info["lon"]
+    name = place or messages.MAP_UNKNOWN_PLACE
+    st.subheader(messages.MAP_HEADING)
+    st.caption(" · ".join(x for x in ("📍 " + name, info.get("address")) if x))
+    import pydeck as pdk
+    point = [{"lat": lat, "lon": lon, "name": name, "address": info.get("address") or ""}]
+    layers = [  # 바깥 옅은 금색 원 + 안쪽 진한 금색 핀: 지도 위에서 잘 보이게
+        pdk.Layer("ScatterplotLayer", point, get_position="[lon, lat]", get_radius=60, radius_min_pixels=16,
+                  radius_max_pixels=28, get_fill_color=[201, 164, 92, 70]),
+        pdk.Layer("ScatterplotLayer", point, get_position="[lon, lat]", get_radius=12, radius_min_pixels=7,
+                  radius_max_pixels=12, get_fill_color=[201, 164, 92, 255], stroked=True,
+                  get_line_color=[22, 23, 27], line_width_min_pixels=2, pickable=True),
+    ]
+    st.pydeck_chart(pdk.Deck(layers=layers, map_style="road", tooltip={"text": "{name}\n{address}"},
+                             initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=MAP_ZOOM)),
+                    height=MAP_HEIGHT)
+    view, route = search_api.kakao_map_links(name, lat, lon)
+    st.markdown(f"[🗺 {messages.MAP_OPEN_KAKAO}]({view}) · [🧭 {messages.MAP_DIRECTIONS}]({route})")
+
+
+def _render_detail_info(info, place=""):
     """요금·주소·문의(아이콘 칸), 안내 링크와 지도(좌표가 있을 때)."""
     if not info:
         st.caption(messages.DETAIL_NO_INFO)
@@ -427,8 +454,7 @@ def _render_detail_info(info):
     if link:
         st.markdown(f"[{messages.DETAIL_LINK}]({link})")
     if info.get("lat") is not None and info.get("lon") is not None:
-        import pandas as pd
-        st.map(pd.DataFrame({"lat": [info["lat"]], "lon": [info["lon"]]}), zoom=14, height=220)
+        _render_map(place, info)
 
 
 def _parse_iso(value):
@@ -752,7 +778,7 @@ def main():
                              type="primary", icon="⭐", disabled=not db_ok):
                     _flash(repository.save(db_path, selected), messages.SAVED_DONE)
             data = _detail_data(selected)
-            _render_detail_info(data.get("info"))
+            _render_detail_info(data.get("info"), place=selected.place)
             if data["summary"]:
                 st.subheader(messages.SUMMARY_HEADING)
                 st.write(data["summary"])
