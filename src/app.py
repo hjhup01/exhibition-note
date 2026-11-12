@@ -203,6 +203,9 @@ ACCENT_TEXT = "#d8b46a"         # 칸 제목·상태 묶음 제목
 MUTED_TEXT = "#9a9890"
 CARD_LINE = "#2e2f36"
 INFO_BG = "#16171b"
+FILTER_CARD_BG = "#1b1c21"      # 필터 카드: 사이드바(#101114)보다 한 톤 밝게
+FILTER_CARD_LINE = "#2a2b31"
+FILTER_INPUT_BG = "#121317"     # 필터 카드 안 입력 칸: 카드보다 어둡게
 POSTER_WIDTH = 150              # 상세 칸 포스터 폭(px)
 THUMB_WIDTH = 64                # 목록 카드 썸네일 폭(px)
 CLOSING_SOON_DAYS = 7           # 끝나기 7일 전부터 '마감임박' 배지
@@ -284,8 +287,16 @@ div[class*="st-key-save-"] button:disabled {{ opacity: 0.45; }}
     display: grid; place-items: center; font-weight: 700; font-size: 0.8rem; }}
 .st-key-account-card [data-testid="stCaptionContainer"] p {{ overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; margin: 0; }}
-/* 필터 카드 제목 줄 */
-.filter-title {{ font-size: 0.78rem; color: {MUTED_TEXT}; letter-spacing: 0.06em; }}
+/* 필터 카드(시안 A): 사이드바보다 한 톤 밝은 카드 + 금색 윗줄 + 그림자, 입력 칸은 더 어둡게 */
+.st-key-filter-card {{ background: {FILTER_CARD_BG} !important; border: 1px solid {FILTER_CARD_LINE} !important;
+    border-top: 3px solid {SAVE_BUTTON_COLOR} !important; border-radius: 9px !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }}
+.st-key-filter-card [data-baseweb="select"] > div, .st-key-filter-card [data-baseweb="input"],
+.st-key-filter-card [data-baseweb="input"] input, .st-key-filter-card [data-baseweb="base-input"] {{
+    background-color: {FILTER_INPUT_BG} !important; }}
+.st-key-filter-card [data-baseweb="select"] > div, .st-key-filter-card [data-baseweb="input"] {{
+    border-color: {FILTER_CARD_LINE} !important; }}
+.filter-title {{ font-size: 0.78rem; font-weight: 700; color: {ACCENT_TEXT}; letter-spacing: 0.08em; }}
 .st-key-reset-filters button {{ background: transparent !important; border: 0 !important; padding: 0 !important;
     min-height: 0 !important; }}
 .st-key-reset-filters button p {{ color: {ACCENT_TEXT} !important; font-size: 0.8rem !important; }}
