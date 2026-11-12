@@ -475,7 +475,7 @@ def _default_actual_date(planned, today):
     return d if d and d <= today else today
 
 
-def _render_interest(db_path, r, today):
+def _render_interest(db_path, r, today, opened=True):
     eid = r["exhibition_id"]
     c1, c2 = st.columns([2, 1], vertical_alignment="bottom")
     with c1:
@@ -487,7 +487,7 @@ def _render_interest(db_path, r, today):
                    messages.PLANNED_DONE)
 
 
-def _render_planned(db_path, r, today):
+def _render_planned(db_path, r, today, opened=True):
     eid = r["exhibition_id"]
     current = _parse_iso(r["planned_visit_date"]) or today
     c1, c2 = st.columns([2, 1], vertical_alignment="bottom")
@@ -511,7 +511,7 @@ def _render_planned(db_path, r, today):
     st.caption(messages.COMPLETE_NOTE)
 
 
-def _render_done(db_path, r, today):
+def _render_done(db_path, r, today, opened=True):
     eid = r["exhibition_id"]
     c1, c2 = st.columns([2, 1], vertical_alignment="bottom")
     with c1:
@@ -543,7 +543,8 @@ def _render_done(db_path, r, today):
     with c2:
         if has_review and st.button(messages.REVIEW_DELETE_BUTTON, key=f"review-del-{eid}"):
             _flash(repository.delete_review(db_path, eid, today=today), messages.REVIEW_DELETED_DONE)
-    _render_photos(db_path, r, editable=True)
+    if opened:  # 사진은 펼쳤을 때만 불러온다(기록이 많아도 처음 화면이 느려지지 않게)
+        _render_photos(db_path, r, editable=True)
 
 
 PHOTO_WIDTH = 150        # 관람완료 탭의 사진 폭(px)
@@ -691,6 +692,26 @@ def _render_all_card(r):
         _render_photos(None, r, editable=False)
 
 
+_MD_SPECIAL = str.maketrans({c: "\\" + c for c in "\\`*_[]<>#|~$"})
+
+
+def record_label(r):
+    """상태 탭의 한 줄 목록 제목. 예: '돌과 숨 · 관람일 2026-11-10 · ★★★★★ · 📷 2'.
+    펼침 상자 제목은 마크다운으로 그려지므로 전시 제목의 특수 문자는 글자 그대로 보이게 한다."""
+    title = str(r["title"]).translate(_MD_SPECIAL)
+    if r["status"] == repository.STATUS_PLANNED:
+        return messages.RECORD_LABEL_PLANNED.format(title=title, planned=r["planned_visit_date"] or "-")
+    if r["status"] == repository.STATUS_DONE:
+        rating = r.get("review_rating")
+        n = len(photos.parse_ids(r.get("photo_ids")))
+        return messages.RECORD_LABEL_DONE.format(
+            title=title, actual=r.get("actual_visit_date") or "-",
+            stars=f" · {'★' * rating}{'☆' * (5 - rating)}" if rating else "",
+            photos=f" · 📷 {n}" if n else "")
+    return messages.RECORD_LABEL_INTEREST.format(title=title, place=str(r["place"]).translate(_MD_SPECIAL),
+                                                 end_date=r["end_date"])
+
+
 def _render_my(db_path, today):
     if st.session_state.get("flash"):
         st.write(st.session_state.pop("flash"))
@@ -702,9 +723,12 @@ def _render_my(db_path, today):
             rows = repository.list_by_status(db_path, status)
             if not rows:
                 st.write(messages.EMPTY_TAB)
+            else:
+                st.caption(messages.RECORD_LIST_NOTE)
             for r in rows:
-                with st.container(border=True):
-                    st.subheader(r["title"])
+                # 처음에는 한 줄 목록만, 누르면 펼쳐진다. key로 열림 상태를 기억해 저장 후 다시 그려도 닫히지 않는다.
+                box = st.expander(record_label(r), key=f"rec-{r['exhibition_id']}", on_change="rerun")
+                with box:
                     st.caption(" · ".join(x for x in (r["place"], r["region"],
                                                       f"{r['start_date']} ~ {r['end_date']}") if x))
                     if status == repository.STATUS_DONE:
@@ -714,7 +738,7 @@ def _render_my(db_path, today):
                                  if r["actual_visit_date"] else ""]
                         if any(dates):
                             st.caption(" · ".join(d for d in dates if d))
-                    _STATUS_CONTROLS[status](db_path, r, today)
+                    _STATUS_CONTROLS[status](db_path, r, today, opened=bool(box.open))
                     if st.button(messages.DELETE_RECORD_BUTTON, key=f"del-{r['exhibition_id']}"):
                         _delete_record(db_path, r["exhibition_id"])
 

@@ -54,7 +54,8 @@ def go_my(at):
 def tab_texts(at, idx):
     # idx: 0=관심, 1=관람예정, 2=관람완료 (맨 앞 '전체' 탭 다음부터)
     t = at.tabs[idx + 1]
-    return [m.value for m in t.markdown] + [s.value for s in t.subheader]
+    # 상태 탭은 한 줄 목록(펼침 상자): 상자 제목의 첫 부분이 전시 제목이다
+    return [m.value for m in t.markdown] + [e.label.split(" · ")[0] for e in t.expander]
 
 
 def rows(db):
@@ -115,9 +116,9 @@ def test_ac8_tab_order_updated_at_desc_then_id(env):
     assert at.tabs[0].label == "전체"
     # 전체 탭: [관심](B전, A전) → [관람예정](C전) → [관람완료] 순으로 묶여 나온다
     assert [s.value for s in at.tabs[0].subheader] == ["B전", "A전", "C전"]
-    assert [s.value for s in at.tabs[1].subheader] == ["B전", "A전"]
-    assert [s.value for s in at.tabs[2].subheader] == ["C전"]
-    assert not at.tabs[3].subheader
+    assert [e.label.split(" · ")[0] for e in at.tabs[1].expander] == ["B전", "A전"]
+    assert [e.label.split(" · ")[0] for e in at.tabs[2].expander] == ["C전"]
+    assert not at.tabs[3].expander
 
 
 def test_ac8_tie_breaks_by_exhibition_id(env):

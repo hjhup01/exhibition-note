@@ -86,7 +86,7 @@ def test_full_flow_plan_change_complete_review(db):
     at.button(key="review-del-1").click().run()
     r = row(db)
     assert (r["status"], r["review_rating"], r["review_text"]) == ("관람완료", None, None)
-    assert "빛의 층위" in [s.value for s in at.tabs[3].subheader]  # 0=전체, 3=관람완료
+    assert "빛의 층위" in [e.label.split(" · ")[0] for e in at.tabs[3].expander]  # 0=전체, 3=관람완료
 
     # 전시 기록 삭제
     at.button(key="del-1").click().run()

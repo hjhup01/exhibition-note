@@ -205,9 +205,12 @@ def my_page(tmp_path, monkeypatch):
     return db
 
 
-def open_done_tab():
+def open_done_tab(expand=True):
     at = AppTest.from_file(APP, default_timeout=30).run()
     at.radio(key="page").set_value(messages.PAGE_MY).run()
+    if expand:  # 관람완료 목록에서 전시를 펼친다
+        at.session_state["rec-1"] = True
+        at.run()
     assert not at.exception
     return at
 
@@ -257,3 +260,35 @@ def test_sheet_storage_remembers_missing_photo_but_not_expired_login():
         with pytest.raises(google_drive.AuthExpired):
             st_.load_photo("expired")
     assert client.downloads == 3  # 로그인 만료는 기억하지 않는다
+
+
+def test_status_tabs_show_one_line_list_and_load_photos_only_when_opened(my_page, monkeypatch):
+    st_ = storage.LocalStorage(my_page)
+    pid = st_.save_photo("a.jpg", photos.prepare_image(png()))
+    repository.add_photo(my_page, "1", pid)
+    repository.write_review(my_page, "1", 4, "좋았다", today=TODAY)
+    loads = []
+    real = storage.LocalStorage.load_photo
+    monkeypatch.setattr(storage.LocalStorage, "load_photo", lambda self, p: loads.append(p) or real(self, p))
+    at = open_done_tab(expand=False)
+    done = at.tabs[3]
+    assert [e.label for e in done.expander] == ["빛의 층위 · 관람일 2026-11-02 · ★★★★☆ · 📷 1"]
+    assert messages.RECORD_LIST_NOTE in [c.value for c in done.caption]
+    assert not done.get("image") and not done.get("file_uploader")  # 접혀 있으면 사진을 불러오지 않는다
+    at.session_state["rec-1"] = True
+    at.run()
+    assert len(at.tabs[3].get("image")) == 1 and at.tabs[3].get("file_uploader")
+
+
+def test_record_label_escapes_markdown_and_shows_status_info():
+    src = open(APP, encoding="utf-8").read()
+    ns = {}
+    start = src.index("_MD_SPECIAL = ")
+    end = src.index("def _render_my(")
+    exec("from exhibition_app import messages, photos, repository\n" + src[start:end], ns)
+    label = ns["record_label"]
+    base = {"title": "[특별전] *빛*", "place": "P", "end_date": "2026-12-31", "planned_visit_date": "2026-11-20",
+            "actual_visit_date": None, "review_rating": None, "photo_ids": None}
+    assert label({**base, "status": "관심"}) == r"\[특별전\] \*빛\* · P · ~2026-12-31"
+    assert label({**base, "status": "관람예정"}).endswith("관람예정일 2026-11-20")
+    assert label({**base, "status": "관람완료"}).endswith("관람일 -")
