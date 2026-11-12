@@ -229,6 +229,9 @@ def test_photos_show_in_done_and_all_tabs_and_can_be_deleted(my_page):
     at = open_done_tab()
     assert len(at.get("image")) == 2  # 관람완료 탭 1장 + 전체 탭 작은 사진 1장
     at.button(key=f"photo-del-1-{pid}").click().run()
+    assert messages.PHOTO_DELETE_CONFIRM in [w.value for w in at.warning]
+    assert repository.photo_ids_of(my_page, "1") == [pid]  # 아직 지우지 않았다
+    at.button(key=f"photo-del-1-{pid}-yes").click().run()
     assert not at.exception
     assert messages.PHOTO_DELETED_DONE in [m.value for m in at.markdown]
     assert repository.photo_ids_of(my_page, "1") == [] and st_.load_photo(pid) is None
@@ -240,6 +243,7 @@ def test_deleting_record_removes_its_photo_files(my_page):
     repository.add_photo(my_page, "1", pid)
     at = open_done_tab()
     at.button(key="del-1").click().run()
+    at.button(key="del-1-yes").click().run()
     assert not at.exception
     assert st_.load_photo(pid) is None
 

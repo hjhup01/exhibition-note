@@ -96,6 +96,7 @@ def test_ac8_save_snapshot_count_duplicate_delete_restart(env):
 
     # 삭제
     at2.button(key="del-1").click().run()
+    at2.button(key="del-1-yes").click().run()  # 삭제는 한 번 더 확인한다
     assert rows(db) == 0
     for i in range(3):
         assert "A전" not in tab_texts(at2, i)

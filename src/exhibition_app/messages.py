@@ -105,8 +105,10 @@ COMPLETE_NOTE = "관람완료로 바꾸면 되돌릴 수 없습니다. 잘못 �
 NO_REVIEW = "아직 관람평이 없습니다."
 REVIEW_HEADING = "✍️ 관람평"
 REVIEW_DELETE_CONFIRM = "관람평(별점·글)을 삭제할까요? 삭제하면 되돌릴 수 없습니다."
-REVIEW_DELETE_YES = "삭제"
-REVIEW_DELETE_NO = "취소"
+DELETE_YES = "삭제"
+DELETE_NO = "취소"
+RECORD_DELETE_CONFIRM = "'{title}' 기록을 삭제할까요? 상태·날짜·관람평·사진이 모두 지워지며 되돌릴 수 없습니다."
+PHOTO_DELETE_CONFIRM = "이 사진을 삭제할까요? 저장된 사진 파일도 지워지며 되돌릴 수 없습니다."
 
 SAVED_DONE = "관심 전시로 저장했습니다."
 PLANNED_DONE = "관람예정으로 옮겼습니다."

@@ -520,10 +520,36 @@ def _set_state(key, value):
     st.session_state[key] = value
 
 
+# ---------- 삭제 공통 규칙: 모든 삭제는 '삭제 버튼 → 경고 문구 + [삭제]/[취소]' 두 단계로 한다 ----------
+# 버튼 key가 K이면: 묻는 중 표시 K-ask, 확인 버튼 K-yes, 취소 버튼 K-no.
+# 실제 삭제 함수는 버튼 콜백에서 실행되므로 st.rerun 대신 _remember_result로 결과를 남긴다.
+
+def _ask_delete_button(where, label, key, icon=":material/delete:"):
+    """첫 단계: 누르면 지우지 않고 '묻는 중' 상태만 켠다."""
+    where.button(label, key=key, icon=icon, on_click=_set_state, args=(f"{key}-ask", True))
+
+
+def _asking(key):
+    return bool(st.session_state.get(f"{key}-ask"))
+
+
+def _confirm_delete(key, message, on_confirm, args=()):
+    """둘째 단계: 경고 문구와 [삭제]/[취소]. [삭제]를 눌러야 on_confirm(*args)가 실행된다."""
+    st.warning(message, icon="⚠️")
+    c1, c2 = st.columns(2)
+    c1.button(messages.DELETE_YES, key=f"{key}-yes", type="primary", icon=":material/delete:",
+              on_click=_run_confirmed, args=(key, on_confirm, args))
+    c2.button(messages.DELETE_NO, key=f"{key}-no", on_click=_set_state, args=(f"{key}-ask", False))
+
+
+def _run_confirmed(key, on_confirm, args):
+    st.session_state[f"{key}-ask"] = False
+    on_confirm(*args)
+
+
 def _delete_review(db_path, eid, today):
     """삭제 확인 후: 관람평을 지우고 입력란(별점·글)도 비운다(콜백이라 위젯보다 먼저 값을 바꿀 수 있다)."""
     result = repository.delete_review(db_path, eid, today=today)
-    st.session_state[f"review-del-ask-{eid}"] = False
     if result.ok:
         st.session_state[f"review-text-{eid}"] = ""
         st.session_state[f"rating-{eid}"] = 5
@@ -545,7 +571,7 @@ def _render_done(db_path, r, today, opened=True):
                    messages.ACTUAL_DATE_CHANGED_DONE)
     # 관람평: 저장된 별점·글을 입력란에 채워 한 곳에서 보고 고친다(따로 보여 주지 않는다)
     has_review = r["review_rating"] is not None
-    rating_key, text_key, ask_key = f"rating-{eid}", f"review-text-{eid}", f"review-del-ask-{eid}"
+    rating_key, text_key, del_key = f"rating-{eid}", f"review-text-{eid}", f"review-del-{eid}"
     # 입력란 값은 세션 값으로만 정한다(삭제 후 입력란을 비울 때 경고가 나지 않게)
     st.session_state.setdefault(rating_key, r["review_rating"] if has_review else 5)
     st.session_state.setdefault(text_key, r["review_text"] or "")
@@ -555,12 +581,8 @@ def _render_done(db_path, r, today, opened=True):
     rating = st.radio(messages.RATING_LABEL, [1, 2, 3, 4, 5], format_func=lambda n: "★" * n, horizontal=True,
                       key=rating_key)
     text = st.text_area(messages.REVIEW_TEXT_LABEL, max_chars=1000, key=text_key)
-    if st.session_state.get(ask_key):  # 삭제 버튼을 누른 뒤: 한 번 더 묻는다
-        st.warning(messages.REVIEW_DELETE_CONFIRM, icon="⚠️")
-        c1, c2 = st.columns(2)
-        c1.button(messages.REVIEW_DELETE_YES, key=f"review-del-yes-{eid}", type="primary",
-                  on_click=_delete_review, args=(db_path, eid, today))
-        c2.button(messages.REVIEW_DELETE_NO, key=f"review-del-no-{eid}", on_click=_set_state, args=(ask_key, False))
+    if _asking(del_key):  # 삭제 버튼을 누른 뒤: 한 번 더 묻는다
+        _confirm_delete(del_key, messages.REVIEW_DELETE_CONFIRM, _delete_review, (db_path, eid, today))
     else:
         c1, c2 = st.columns(2)
         with c1:
@@ -568,7 +590,7 @@ def _render_done(db_path, r, today, opened=True):
                 _flash(repository.write_review(db_path, eid, rating, text, today=today),
                        messages.REVIEW_SAVED_DONE)
         if has_review:
-            c2.button(messages.REVIEW_DELETE_BUTTON, key=f"review-del-{eid}", on_click=_set_state, args=(ask_key, True))
+            _ask_delete_button(c2, messages.REVIEW_DELETE_BUTTON, del_key)
     if opened:  # 사진은 펼쳤을 때만 불러온다(기록이 많아도 처음 화면이 느려지지 않게)
         _render_photos(db_path, r, editable=True)
 
@@ -606,9 +628,13 @@ def _render_photos(db_path, r, editable):
                     st.image(data, width=PHOTO_WIDTH if editable else PHOTO_THUMB_WIDTH)
                 else:
                     st.caption(messages.PHOTO_LOAD_FAILED)
-                if editable and st.button(messages.PHOTO_DELETE_BUTTON, key=f"photo-del-{eid}-{pid}",
-                                          icon=":material/delete:"):
-                    _delete_photo(db_path, eid, pid)
+                if editable:
+                    _ask_delete_button(st, messages.PHOTO_DELETE_BUTTON, f"photo-del-{eid}-{pid}")
+        # 사진 칸은 좁아서, 삭제 확인은 사진 줄 아래에 넓게 보여 준다
+        for pid in ids if editable else []:
+            if _asking(f"photo-del-{eid}-{pid}"):
+                _confirm_delete(f"photo-del-{eid}-{pid}", messages.PHOTO_DELETE_CONFIRM, _delete_photo,
+                                (db_path, eid, pid))
     if editable and len(ids) < photos.MAX_PHOTOS:
         turn = st.session_state.get(f"photo-turn-{eid}", 0)  # 올린 뒤 고르기 칸을 비우려고 key를 바꾼다
         picked = st.file_uploader(messages.PHOTO_UPLOAD_LABEL, type=photos.ACCEPTED_TYPES,
@@ -650,20 +676,22 @@ def _forget_photo(photo_id):
 
 
 def _delete_photo(db_path, eid, photo_id):
+    """사진 삭제(확인 버튼 콜백에서 실행)."""
     result = repository.remove_photo(db_path, eid, photo_id)
     if result.ok:
         _forget_photo(photo_id)
-    _flash(result, messages.PHOTO_DELETED_DONE)
+    _remember_result(result, messages.PHOTO_DELETED_DONE)
 
 
 def _delete_record(db_path, eid):
-    """전시 기록을 지우면 그 기록의 사진 파일도 지운다."""
+    """전시 기록을 지우면 그 기록의 사진 파일도 지운다(확인 버튼 콜백에서 실행)."""
     ids = repository.photo_ids_of(db_path, eid)
     result = repository.delete(db_path, eid)
     if result.ok:
         for pid in ids:
             _forget_photo(pid)
-    _flash(result, messages.RECORD_DELETED_DONE)
+        st.session_state.pop(f"rec-open-{eid}", None)
+    _remember_result(result, messages.RECORD_DELETED_DONE)
 
 
 _STATUS_CONTROLS = {
@@ -773,8 +801,11 @@ def _render_my(db_path, today):
                         if any(dates):
                             st.caption(" · ".join(d for d in dates if d))
                     _STATUS_CONTROLS[status](db_path, r, today, opened=bool(box.open))
-                    if st.button(messages.DELETE_RECORD_BUTTON, key=f"del-{r['exhibition_id']}"):
-                        _delete_record(db_path, r["exhibition_id"])
+                    if _asking(f"del-{eid}"):
+                        _confirm_delete(f"del-{eid}", messages.RECORD_DELETE_CONFIRM.format(title=r["title"]),
+                                        _delete_record, (db_path, eid))
+                    else:
+                        _ask_delete_button(st, messages.DELETE_RECORD_BUTTON, f"del-{eid}")
 
 
 def _render_assistant():
