@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사이드바 배치 시안</title>
+<style>
+  :root {
+    --bg: #16171b; --panel: #1f2026; --side: #101114; --line: #2e2f36; --text: #ecebe6;
+    --muted: #9a9890; --gold: #c9a45c; --gold2: #d8b46a; --dark: #16171b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0c0e; color: var(--text);
+         font-family: "Source Sans Pro", "Segoe UI", "Malgun Gothic", sans-serif; font-size: 14px; }
+  h1 { font-size: 20px; margin: 24px 24px 4px; }
+  .lead { color: var(--muted); margin: 0 24px 20px; }
+  .row { display: flex; gap: 24px; padding: 0 24px 32px; flex-wrap: wrap; }
+  .opt { flex: 1 1 420px; min-width: 0; }
+  .opt h2 { font-size: 16px; margin: 0 0 4px; color: var(--gold2); }
+  .opt p.desc { color: var(--muted); margin: 0 0 10px; line-height: 1.5; min-height: 63px; }
+  .frame { display: flex; height: 640px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+           background: var(--bg); }
+  .side { width: 220px; background: var(--side); padding: 18px 14px; display: flex; flex-direction: column; gap: 10px;
+          border-right: 1px solid var(--line); flex-shrink: 0; }
+  .main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .brand { font-weight: 700; font-size: 17px; }
+  .tag { color: var(--muted); font-size: 11.5px; margin-top: -6px; }
+  .nav a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--text);
+           text-decoration: none; font-size: 13.5px; }
+  .nav a.on { background: #2a2618; color: var(--gold2); font-weight: 600; box-shadow: inset 3px 0 0 var(--gold); }
+  .nav a .cnt { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+  .field { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px;
+           font-size: 12.5px; display: flex; justify-content: space-between; color: var(--text); }
+  .field span { color: var(--muted); }
+  .chip { display: inline-block; background: #3a3220; color: var(--gold2); border-radius: 5px; padding: 1px 7px;
+          font-size: 12px; margin-right: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 10px; display: flex;
+          flex-direction: column; gap: 7px; }
+  .account { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--line);
+             border-radius: 9px; background: var(--panel); font-size: 12px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--gold); color: var(--dark);
+            display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+  .account .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account .out { color: var(--muted); font-size: 11px; }
+  .btn-gold { background: var(--gold); color: var(--dark); border-radius: 7px; padding: 7px; text-align: center;
+              font-weight: 600; font-size: 12.5px; }
+  .hint { color: var(--muted); font-size: 10.5px; text-align: center; }
+  .check { font-size: 12.5px; display: flex; gap: 6px; align-items: center; }
+  .box { width: 13px; height: 13px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+  .pane { border: 1px solid var(--line); border-radius: 9px; padding: 9px; display: flex; flex-direction: column; gap: 7px;
+          overflow: hidden; }
+  .pt { color: var(--gold2); font-weight: 700; text-align: center; font-size: 13px; }
+  .item { display: flex; gap: 8px; border: 1px solid var(--line); border-radius: 7px; padding: 7px; background: var(--panel); }
+  .item.sel { border: 2px solid var(--gold); }
+  .th { width: 30px; height: 40px; border-radius: 4px; background: linear-gradient(160deg, #3c5a3a, #2c2a22); flex-shrink: 0; }
+  .ln { height: 7px; border-radius: 3px; background: #3a3b42; margin: 4px 0; }
+  .ln.s { width: 60%; background: #2e2f36; }
+  .poster { width: 70px; height: 96px; border-radius: 5px; background: linear-gradient(160deg, #2f5a37, #1e3524); }
+  .topnav { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; align-items: center; }
+  .topnav a { padding: 6px 12px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13px; }
+  .topnav a.on { background: #2a2618; color: var(--gold2); font-weight: 600; }
+  .topnav .sp { flex: 1; }
+  .filterbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .filterbar .field { min-width: 0; }
+  .pill { border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 12px; background: var(--panel); }
+  .pill.on { border-color: var(--gold); color: var(--gold2); }
+  .note { background: #1d1b14; border: 1px solid #3a3220; color: var(--gold2); border-radius: 8px; padding: 6px 10px;
+          font-size: 11.5px; }
+  .why { margin-top: 10px; font-size: 12.5px; line-height: 1.6; color: var(--text); }
+  .why b { color: var(--gold2); }
+  .now { flex-basis: 100%; }
+</style>
+</head>
+<body>
+<h1>사이드바 배치 시안</h1>
+<p class="lead">색·글꼴은 지금 그대로(다크 갤러리) 두고, 왼쪽 사이드바의 배치만 바꾼 세 가지 안입니다. 오른쪽 목록·상세 칸은 그대로입니다.</p>
+
+<div class="row">
+
+  <!-- A -->
+  <div class="opt">
+    <h2>A. 정돈형 사이드바</h2>
+    <p class="desc">구성은 지금과 같고 정리만 합니다. 메뉴는 아이콘과 건수가 붙은 버튼으로, 필터는 하나의 카드로 묶습니다. 계정은 맨 아래로 내리고, 긴 로그인 안내는 한 줄로 줄입니다.</p>
+    <div class="frame">
+      <div class="side">
+        <div class="brand">🎨 미술 전시</div>
+        <div class="tag">오늘 볼 전시를 찾고, 본 전시를 기록하세요</div>
+        <div class="nav">
+          <a class="on">🔍 전시 찾기</a>
+          <a>📒 내 전시 <span class="cnt">3</span></a>
+          <a>💬 AI 도우미</a>
+        </div>
+        <div class="card">
+          <div class="lbl" style="margin-top:0">필터 <span style="float:right;text-transform:none;color:var(--gold2)">↺ 초기화</span></div>
+          <div class="grid2"><div class="field">전시중 <span>▾</span></div><div class="field">기본순 <span>▾</span></div></div>
+          <div class="field"><div><span class="chip">서울 ×</span></div><span>▾</span></div>
+          <div class="field"><span>구 선택</span><span>▾</span></div>
+          <div class="field"><span>🔎 키워드</span></div>
+          <div class="check"><div class="box"></div>미술관·갤러리만</div>
+        </div>
+        <div class="account"><div class="avatar">H</div><div class="who">me@gmail.com</div><div class="out">로그아웃</div></div>
+      </div>
+      <div class="main">
+        <div class="panes">
+          <div class="pane"><div class="pt">서울 - 전시중인 목록</div>
+            <div class="item sel"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+          </div>
+          <div class="pane"><div class="pt">전시 상세</div><div style="display:flex;gap:8px"><div class="poster"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="why"><b>장점</b> 바꾸는 범위가 가장 작고 안전합니다. '처음 화면' 버튼은 필터 카드의 ↺ 초기화로 합칩니다.<br><b>단점</b> 사이드바 폭은 지금과 같습니다.</div>
+  </div>
+
+  <!-- B -->
+  <div class="opt">
+    <h2>B. 메뉴는 위로, 사이드바는 필터 전용</h2>
+    <p class="desc">페이지 메뉴를 본문 맨 위의 탭 줄로 옮깁니다. 계정도 탭 줄 오른쪽에 둡니다. 사이드바에는 필터만 남아 '검색 패널' 역할만 합니다.</p>
+    <div class="frame">
+      <div class="side">
+        <div class="brand">🎨 미술 전시</div>
+        <div class="tag">오늘 볼 전시를 찾고, 본 전시를 기록하세요</div>
+        <div class="lbl">기간</div><div class="field">전시중 <span>▾</span></div>
+        <div class="lbl">지역</div><div class="field"><div><span class="chip">서울 ×</span></div><span>▾</span></div>
+        <div class="lbl">서울 구</div><div class="field"><span>전체</span><span>▾</span></div>
+        <div class="lbl">키워드</div><div class="field"><span>🔎 전시 이름</span></div>
+        <div class="check"><div class="box"></div>미술관·갤러리만</div>
+        <div class="lbl">정렬</div><div class="field">기본순 <span>▾</span></div>
+        <div style="margin-top:auto" class="hint">↺ 필터 초기화</div>
+      </div>
+      <div class="main">
+        <div class="topnav"><a class="on">🔍 전시 찾기</a><a>📒 내 전시 3</a><a>💬 AI 도우미</a><span class="sp"></span>
+          <div class="avatar" title="me@gmail.com">H</div></div>
+        <div class="panes">
+          <div class="pane"><div class="pt">서울 - 전시중인 목록</div>
+            <div class="item sel"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+          </div>
+          <div class="pane"><div class="pt">전시 상세</div><div style="display:flex;gap:8px"><div class="poster"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="why"><b>장점</b> 일반 웹사이트처럼 익숙한 배치이고, 휴대폰에서도 메뉴가 위에 바로 보입니다. 내 전시·AI 도우미 화면에서는 필터가 필요 없으니 사이드바가 접힙니다.<br><b>단점</b> 바꾸는 범위가 중간입니다. 메뉴 방식이 바뀌어 테스트도 일부 고쳐야 합니다.</div>
+  </div>
+
+  <!-- C -->
+  <div class="opt">
+    <h2>C. 사이드바 없이, 필터 줄을 목록 위에</h2>
+    <p class="desc">사이드바를 없애고 본문을 넓게 씁니다. 맨 위에는 로고·메뉴·계정, 그 아래에는 필터를 알약 모양 버튼으로 한 줄 놓습니다. 갤러리 웹사이트에 가장 가까운 모습입니다.</p>
+    <div class="frame">
+      <div class="main" style="padding:14px 18px">
+        <div class="topnav"><span class="brand" style="margin-right:10px">🎨 미술 전시</span><a class="on">🔍 전시 찾기</a><a>📒 내 전시 3</a><a>💬 AI 도우미</a><span class="sp"></span>
+          <div class="avatar">H</div></div>
+        <div class="filterbar">
+          <span class="pill on">전시중 ▾</span><span class="pill on">서울 · 종로구 ▾</span>
+          <span class="pill" style="flex:1;min-width:110px">🔎 키워드</span><span class="pill">미술관·갤러리만</span><span class="pill">기본순 ▾</span>
+          <span class="pill" style="color:var(--muted)">↺</span>
+        </div>
+        <div class="panes">
+          <div class="pane"><div class="pt">서울 - 전시중인 목록</div>
+            <div class="item sel"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+            <div class="item"><div class="th"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div>
+          </div>
+          <div class="pane"><div class="pt">전시 상세</div><div style="display:flex;gap:8px"><div class="poster" style="width:90px;height:122px"></div><div style="flex:1"><div class="ln"></div><div class="ln s"></div></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="why"><b>장점</b> 목록·상세 칸이 가장 넓어집니다. 지금 어떤 필터가 걸려 있는지 한눈에 보입니다.<br><b>단점</b> 바꾸는 범위가 가장 큽니다. 지역·구처럼 고를 것이 많은 필터는 알약을 누르면 펼쳐지는 창(팝오버)이 되어 한 번 더 눌러야 합니다.</div>
+  </div>
+
+</div>
+</body>
+</html>

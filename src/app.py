@@ -148,12 +148,15 @@ def _open_storage():
         return None, str(e), settings
 
 
-def _render_google_account(settings):
-    """사이드바: 로그인 상태와 로그인·로그아웃 버튼."""
+def _render_google_account(settings, box):
+    """사이드바 맨 아래 계정 카드(box): 로그인 상태와 로그인·로그아웃 버튼."""
     login = _current_login(settings)
     if login:
-        st.sidebar.caption(messages.GOOGLE_LOGGED_IN_AS.format(email=login.get("email") or "구글 계정"))
-        if st.sidebar.button(messages.GOOGLE_LOGOUT_BUTTON, key="google-logout"):
+        email = login.get("email") or "구글 계정"
+        row = box.container(horizontal=True, wrap=False, vertical_alignment="center", gap="small")
+        row.html(f'<div class="avatar">{html.escape(email[:1].upper())}</div>', width="content")
+        row.caption(messages.GOOGLE_LOGGED_IN_AS.format(email=email))
+        if box.button(messages.GOOGLE_LOGOUT_BUTTON, key="google-logout", icon=":material/logout:", use_container_width=True):
             st.session_state.pop("google", None)
             st.session_state.pop("sheet_cache", None)
             if settings == NATIVE:
@@ -161,23 +164,23 @@ def _render_google_account(settings):
             st.rerun()
     elif settings == NATIVE:
         if google_drive.is_in_app_browser(_request_headers().get("user-agent")):
-            st.sidebar.warning(messages.GOOGLE_IN_APP_BROWSER)
-        if st.sidebar.button(messages.GOOGLE_LOGIN_BUTTON, key="google-login", type="primary", icon="🔑",
-                             use_container_width=True):
+            box.warning(messages.GOOGLE_IN_APP_BROWSER)
+        if box.button(messages.GOOGLE_LOGIN_BUTTON, key="google-login", type="primary", icon="🔑",
+                      help=messages.GOOGLE_LOGIN_HELP, use_container_width=True):
             native_auth.login()
-        st.sidebar.caption(messages.GOOGLE_LOGIN_HINT_SAME_WINDOW)
+        box.caption(messages.GOOGLE_LOGIN_HINT_SAME_WINDOW)
     else:
         cid, secret, redirect = settings
         headers = _request_headers()
         if google_drive.is_in_app_browser(headers.get("user-agent")):
-            st.sidebar.warning(messages.GOOGLE_IN_APP_BROWSER)
+            box.warning(messages.GOOGLE_IN_APP_BROWSER)
         if google_drive.redirect_host_mismatch(headers.get("x-forwarded-host") or headers.get("host"), redirect):
-            st.sidebar.error(messages.GOOGLE_REDIRECT_MISMATCH.format(
+            box.error(messages.GOOGLE_REDIRECT_MISMATCH.format(
                 want=redirect, host=headers.get("x-forwarded-host") or headers.get("host")))
-        st.sidebar.link_button(messages.GOOGLE_LOGIN_BUTTON,
-                               google_drive.auth_url(cid, redirect, google_drive.make_state(secret)),
-                               type="primary", icon="🔑", use_container_width=True)
-        st.sidebar.caption(messages.GOOGLE_LOGIN_HINT)
+        box.link_button(messages.GOOGLE_LOGIN_BUTTON,
+                        google_drive.auth_url(cid, redirect, google_drive.make_state(secret)),
+                        type="primary", icon="🔑", use_container_width=True)
+        box.caption(messages.GOOGLE_LOGIN_HINT)
 
 
 def _request_headers():
@@ -267,6 +270,39 @@ div[class*="st-key-save-"] button:hover {{
     background-color: {SAVE_BUTTON_HOVER} !important; border-color: {SAVE_BUTTON_HOVER} !important;
 }}
 div[class*="st-key-save-"] button:disabled {{ opacity: 0.45; }}
+/* 사이드바: 로고(=처음 화면 버튼)는 제목 글자처럼, 계정 카드는 맨 아래에 */
+.st-key-home button {{ background: transparent !important; border: 0 !important; padding: 0 !important;
+    min-height: 0 !important; justify-content: flex-start !important; }}
+.st-key-home button p {{ font-size: 1.6rem !important; font-weight: 700 !important; }}
+.st-key-home button:hover p {{ color: {SAVE_BUTTON_COLOR} !important; }}
+[data-testid="stSidebarUserContent"] {{ min-height: 100%; display: flex; flex-direction: column; }}
+[data-testid="stSidebarUserContent"] > div:first-child {{ flex: 1; display: flex; flex-direction: column; }}
+[data-testid="stSidebarUserContent"] > div:first-child > div[data-testid="stVerticalBlock"] {{ flex: 1; }}
+[data-testid="stSidebarUserContent"] [data-testid="stLayoutWrapper"]:has(> .st-key-account-card) {{
+    margin-top: auto !important; }}
+.avatar {{ width: 28px; height: 28px; border-radius: 50%; background: {SAVE_BUTTON_COLOR}; color: {SAVE_BUTTON_TEXT};
+    display: grid; place-items: center; font-weight: 700; font-size: 0.8rem; }}
+.st-key-account-card [data-testid="stCaptionContainer"] p {{ overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; margin: 0; }}
+/* 필터 카드 제목 줄 */
+.filter-title {{ font-size: 0.78rem; color: {MUTED_TEXT}; letter-spacing: 0.06em; }}
+.st-key-reset-filters button {{ background: transparent !important; border: 0 !important; padding: 0 !important;
+    min-height: 0 !important; }}
+.st-key-reset-filters button p {{ color: {ACCENT_TEXT} !important; font-size: 0.8rem !important; }}
+/* 본문 맨 위 메뉴: 라디오를 탭 줄처럼 */
+.st-key-top-nav {{ border-bottom: 1px solid {CARD_LINE}; padding-bottom: 0.4rem; }}
+.st-key-top-nav [role="radiogroup"] {{ gap: 0.3rem !important; }}
+.st-key-top-nav [data-testid="stRadioOption"] {{ padding: 0.35rem 0.9rem; border-radius: 8px; margin: 0 !important;
+    cursor: pointer; }}
+.st-key-top-nav [data-testid="stRadioOption"] > div > div:first-child {{ display: none !important; }}
+.st-key-top-nav [data-testid="stRadioOption"]:hover {{ background: #24252b; }}
+.st-key-top-nav [data-testid="stRadioOption"][data-selected="true"] {{ background: #2a2618;
+    box-shadow: inset 0 -2px 0 {SAVE_BUTTON_COLOR}; }}
+.st-key-top-nav [data-testid="stRadioOption"][data-selected="true"] p {{ color: {ACCENT_TEXT} !important;
+    font-weight: 600; }}
+.st-key-top-nav [role="radiogroup"] > div:nth-child(1) p::before {{ content: "🔍 "; }}
+.st-key-top-nav [role="radiogroup"] > div:nth-child(2) p::before {{ content: "📒 "; }}
+.st-key-top-nav [role="radiogroup"] > div:nth-child(3) p::before {{ content: "💬 "; }}
 /* 휴대폰(좁은 화면): 두 칸이 세로로 쌓이므로 목록은 화면 절반 높이로, 상세는 내용 길이만큼 */
 @media (max-width: 640px) {{
     .st-key-list-pane {{ height: auto !important; max-height: 55vh !important; }}
@@ -584,14 +620,17 @@ def main():
     my_label = (messages.MY_LABEL_FORMAT.format(count=repository.count(db_path)) if db_ok
                 else messages.PAGE_MY)
 
-    st.sidebar.title("🎨 " + messages.APP_TITLE)
+    # 사이드바: 로고(누르면 처음 화면) · 소개 · [필터 카드: 전시 찾기에서만] · … · [계정 카드: 맨 아래]
+    st.sidebar.button("🎨 " + messages.APP_TITLE, key="home", on_click=_go_home, help=messages.HOME_BUTTON)
     st.sidebar.html(f'<div class="tagline">{html.escape(messages.APP_TAGLINE)}</div>')
-    st.sidebar.button(messages.HOME_BUTTON, key="home", icon="🏠", on_click=_go_home, use_container_width=True)
+    filter_slot = st.sidebar.container()
     if gsettings:
-        _render_google_account(gsettings)
-    page = st.sidebar.radio("페이지", [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT],
-                            format_func=lambda p: my_label if p == messages.PAGE_MY else p,
-                            label_visibility="collapsed", key="page")
+        _render_google_account(gsettings, st.sidebar.container(border=True, key="account-card"))
+    # 본문 맨 위: 페이지 메뉴(탭 줄)
+    with st.container(key="top-nav"):
+        page = st.radio("페이지", [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT],
+                        format_func=lambda p: my_label if p == messages.PAGE_MY else p,
+                        horizontal=True, label_visibility="collapsed", key="page")
     if page == messages.PAGE_ASSISTANT:
         _render_assistant()
         return
@@ -604,12 +643,19 @@ def main():
             st.write(store_message)
         return
     period_options = [messages.PERIOD_ALL, messages.PERIOD_ONGOING, messages.PERIOD_UPCOMING, messages.PERIOD_PAST]
+    card = filter_slot.container(border=True, key="filter-card")
+    head = card.container(horizontal=True, vertical_alignment="center", horizontal_alignment="distribute")
+    head.html(f'<div class="filter-title">{html.escape(messages.FILTER_CARD_TITLE)}</div>')
+    head.button(messages.FILTER_RESET_BUTTON, key="reset-filters", icon=":material/restart_alt:", on_click=_go_home)
+    period_col, sort_col = card.columns(2)
     # 기본값은 세션 값으로만 정한다(처음 화면 버튼이 세션 값을 바꿀 때 경고가 나지 않게).
     st.session_state.setdefault("period", DEFAULT_PERIOD)
-    period = st.sidebar.selectbox(messages.FILTER_PERIOD_LABEL, period_options, key="period")
+    period = period_col.selectbox(messages.FILTER_PERIOD_LABEL, period_options, key="period")
+    st.session_state.setdefault("sort", messages.SORT_DEFAULT)
+    order = sort_col.selectbox(messages.FILTER_SORT_LABEL, messages.SORT_OPTIONS, key="sort")
     past_range, past_note = None, None
     if period == messages.PERIOD_PAST:
-        rng = st.sidebar.date_input(messages.FILTER_PAST_RANGE_LABEL,
+        rng = card.date_input(messages.FILTER_PAST_RANGE_LABEL,
                                     value=(today - timedelta(days=PAST_DEFAULT_DAYS), today - timedelta(days=1)),
                                     max_value=today - timedelta(days=1), key="past-range", format="YYYY-MM-DD")
         if isinstance(rng, (list, tuple)) and len(rng) == 2:
@@ -624,7 +670,7 @@ def main():
     st.session_state.setdefault("regions", [DEFAULT_REGION])
     # 목록에 없는 지역(예: 기본값 '서울'이 목록에 없을 때)은 뺀다
     st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
-    regions = st.sidebar.multiselect(messages.FILTER_REGION_LABEL, region_options,
+    regions = card.multiselect(messages.FILTER_REGION_LABEL, region_options,
                                      placeholder=messages.FILTER_REGION_PLACEHOLDER, key="regions")
     districts = {}
     if DEFAULT_REGION in regions:
@@ -632,12 +678,10 @@ def main():
         d_options = filters.district_options(base, DEFAULT_REGION)
         if d_key in st.session_state:
             st.session_state[d_key] = [d for d in st.session_state[d_key] if d in d_options]
-        districts[DEFAULT_REGION] = st.sidebar.multiselect(
+        districts[DEFAULT_REGION] = card.multiselect(
             messages.FILTER_DISTRICT_LABEL, d_options, placeholder=messages.FILTER_DISTRICT_PLACEHOLDER, key=d_key)
-    keyword = st.sidebar.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword")
-    art_only = st.sidebar.checkbox(messages.FILTER_ART_ONLY_LABEL, key="art-only")
-    st.session_state.setdefault("sort", messages.SORT_DEFAULT)
-    order = st.sidebar.selectbox(messages.FILTER_SORT_LABEL, messages.SORT_OPTIONS, key="sort")
+    keyword = card.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword")
+    art_only = card.checkbox(messages.FILTER_ART_ONLY_LABEL, key="art-only")
 
     shown = filters.filter_exhibitions(base, today, messages.PERIOD_ALL if period == messages.PERIOD_PAST else period,
                                        regions, keyword, art_only=art_only, districts=districts)

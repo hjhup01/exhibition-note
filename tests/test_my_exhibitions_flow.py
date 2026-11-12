@@ -43,7 +43,7 @@ def start_saved_on_my_page():
     at.button(key="pick-1").click().run()
     at.button(key="save-1").click().run()
     assert messages.SAVED_DONE in texts(at)
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert not at.exception
     return at
 
@@ -133,7 +133,7 @@ def test_all_tab_first_lists_every_status_read_only(db, monkeypatch):
     repository.complete(db, "2", "2026-11-05", today=TODAY)
     repository.write_review(db, "2", 4, "좋았다")
     at = AppTest.from_file(APP, default_timeout=30).run()
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert not at.exception
     assert [t.label for t in at.tabs] == ["전체", "관심", "관람예정", "관람완료"]
     all_tab = at.tabs[0]

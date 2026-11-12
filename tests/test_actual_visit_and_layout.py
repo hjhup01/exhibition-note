@@ -95,7 +95,7 @@ def test_complete_from_screen_with_actual_date_then_change(app_env):
     at = AppTest.from_file(APP, default_timeout=30).run()
     at.button(key="pick-1").click().run()
     at.button(key="save-1").click().run()
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     at.date_input(key="plan-date-1").set_value(date(2026, 11, 20)).run()
     at.button(key="plan-1").click().run()
     # 예정일이 미래면 실제 관람일 기본값은 오늘

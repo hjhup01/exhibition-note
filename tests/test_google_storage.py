@@ -225,7 +225,7 @@ def test_not_logged_in_can_browse_but_not_save(google_env):
     assert messages.GOOGLE_LOGIN_NEEDED in texts(at)
     at.button(key="pick-1").click().run()
     assert at.button(key="save-1").disabled
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert messages.GOOGLE_LOGIN_NEEDED in texts(at) and not at.tabs
     assert not (google_env[1] / "local.db").exists()  # 구글 모드에서는 로컬 DB를 만들지 않는다
 
@@ -240,7 +240,7 @@ def test_logged_in_saves_to_user_sheet_and_logout(google_env):
     at.button(key="save-1").click().run()
     assert not at.exception and messages.SAVED_DONE in texts(at)
     assert [(r["exhibition_id"], r["status"]) for r in shared.rows] == [("1", "관심")]
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     at.button(key="plan-1").click().run()
     assert shared.rows[0]["status"] == "관람예정"
     at.sidebar.button(key="google-logout").click().run()

@@ -52,8 +52,8 @@ def test_ac11_repository_reports_message(broken_db):
 def test_ac11_find_page_shows_message_and_disables_save(broken_db):
     at = run()
     assert MSG in texts(at)
-    assert at.sidebar.radio[0].options == [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT]
-    assert "내 전시" in [at.sidebar.radio[0].format_func(o) for o in at.sidebar.radio[0].options]
+    assert at.radio(key="page").options == [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT]
+    assert "내 전시" in [at.radio(key="page").format_func(o) for o in at.radio(key="page").options]
     at.button(key="pick-1").click().run()
     assert not at.exception
     assert at.button(key="save-1").disabled
@@ -70,7 +70,7 @@ def test_ac11_filters_still_work(broken_db):
 
 def test_ac11_my_page_shows_only_message(broken_db):
     at = run()
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert not at.exception
     assert texts(at) == [MSG]
     assert not at.tabs

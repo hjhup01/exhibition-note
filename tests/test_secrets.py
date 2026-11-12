@@ -123,7 +123,7 @@ def go_pages(at):
     if picks:
         picks[0].click().run()
         seen.append(screen(at))
-    radios = at.sidebar.radio
+    radios = [r for r in at.radio if r.key == "page"]
     if radios:
         mine = [o for o in radios[0].options if o.startswith(messages.PAGE_MY)]
         if mine:

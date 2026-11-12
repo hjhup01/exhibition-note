@@ -95,3 +95,33 @@ def test_requirements_are_pinned():
 def test_mobile_layout_css_present():
     src = (ROOT / "src" / "app.py").read_text(encoding="utf-8")
     assert "@media (max-width: 640px)" in src
+
+
+# ---------- 배치: 메뉴는 본문 위 탭 줄, 사이드바는 필터 카드 + 맨 아래 계정 카드 ----------
+
+def test_page_menu_is_in_main_area_not_sidebar(env):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert at.radio(key="page").value == messages.PAGE_FIND
+    assert not at.sidebar.radio  # 사이드바에는 메뉴가 없다
+    src = (ROOT / "src" / "app.py").read_text(encoding="utf-8")
+    assert 'st.container(key="top-nav")' in src and "horizontal=True" in src
+
+
+def test_filter_card_only_on_find_page_and_reset_button(env):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert at.sidebar.selectbox(key="period") and at.sidebar.selectbox(key="sort")
+    at.sidebar.selectbox(key="sort").set_value(messages.SORT_TITLE).run()
+    at.sidebar.text_input(key="keyword").set_value("가").run()
+    at.sidebar.button(key="reset-filters").click().run()
+    assert not at.exception and not at.warning
+    assert at.sidebar.selectbox(key="sort").value == messages.SORT_DEFAULT
+    assert at.sidebar.text_input(key="keyword").value == ""
+    at.radio(key="page").set_value(messages.PAGE_ASSISTANT).run()
+    assert not [s for s in at.sidebar.selectbox if s.key == "period"]  # 다른 화면에는 필터가 없다
+
+
+def test_logo_button_goes_home_from_any_page(env):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
+    at.sidebar.button(key="home").click().run()
+    assert at.radio(key="page").value == messages.PAGE_FIND

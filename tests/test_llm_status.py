@@ -109,6 +109,6 @@ def test_assistant_page_shows_notice_when_ai_unavailable(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "x.db"))
     llm_status.mark_failed()
     at = AppTest.from_file(APP, default_timeout=30).run()
-    at.sidebar.radio[0].set_value(messages.PAGE_ASSISTANT).run()
+    at.radio(key="page").set_value(messages.PAGE_ASSISTANT).run()
     assert not at.exception
     assert messages.AI_UNAVAILABLE in [i.value for i in at.info]

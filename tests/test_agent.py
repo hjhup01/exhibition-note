@@ -236,7 +236,7 @@ def test_assistant_page_shows_answer_sources_and_trace(monkeypatch, tmp_path):
                                                  "contexts": [{"doc_id": "ex-1", "text": "[전시] 빛의 층위"}],
                                                  "trace": [{"step": "input_guard", "input": q, "output": "pass"}]})
     at = AppTest.from_file(str(Path(__file__).resolve().parent.parent / "src" / "app.py"), default_timeout=30).run()
-    at.sidebar.radio[0].set_value(messages.PAGE_ASSISTANT).run()
+    at.radio(key="page").set_value(messages.PAGE_ASSISTANT).run()
     assert not at.exception
     at.chat_input[0].set_value("서울 전시 추천").run()
     assert not at.exception

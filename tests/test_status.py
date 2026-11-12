@@ -105,7 +105,7 @@ def test_ac9_status_not_changed_by_time(db, tmp_path, monkeypatch):
     at = AppTest.from_file(APP, default_timeout=30)
     at.run()
     assert not at.exception
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert not at.exception
     assert [r["status"] for r in repo.list_by_status(db, "관람예정")] == ["관람예정"]
     assert repo.list_by_status(db, "관람완료") == []

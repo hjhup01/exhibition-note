@@ -46,7 +46,7 @@ def pick_and_save(at, key):
 
 
 def go_my(at):
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     assert not at.exception
     return at
 
@@ -65,7 +65,7 @@ def rows(db):
 def test_ac8_save_snapshot_count_duplicate_delete_restart(env):
     db, state = env
     at = run()
-    assert "내 전시(0)" in at.sidebar.radio[0].options
+    assert "내 전시(0)" in at.radio(key="page").options
     pick_and_save(at, "1")
     assert rows(db) == 1
     with sqlite3.connect(db) as c:
@@ -76,11 +76,11 @@ def test_ac8_save_snapshot_count_duplicate_delete_restart(env):
     at = go_my(at)
     assert tab_texts(at, 0).count("A전") == 1
     assert "A전" not in tab_texts(at, 1) and "A전" not in tab_texts(at, 2)
-    assert any("내 전시(1)" in str(o) for o in at.sidebar.radio[0].options) or \
-        "내 전시(1)" in at.sidebar.radio[0].options
+    assert any("내 전시(1)" in str(o) for o in at.radio(key="page").options) or \
+        "내 전시(1)" in at.radio(key="page").options
 
     # 재저장
-    at.sidebar.radio[0].set_value(messages.PAGE_FIND).run()
+    at.radio(key="page").set_value(messages.PAGE_FIND).run()
     at.button(key="pick-1").click().run()
     at.button(key="save-1").click().run()
     assert messages.ALREADY_SAVED in texts(at)
@@ -91,14 +91,14 @@ def test_ac8_save_snapshot_count_duplicate_delete_restart(env):
     at2 = go_my(run())
     assert "A전" in tab_texts(at2, 0)
     assert "바뀐 제목" not in tab_texts(at2, 0)
-    assert "내 전시(1)" in at2.sidebar.radio[0].options
+    assert "내 전시(1)" in at2.radio(key="page").options
 
     # 삭제
     at2.button(key="del-1").click().run()
     assert rows(db) == 0
     for i in range(3):
         assert "A전" not in tab_texts(at2, i)
-    assert "내 전시(0)" in at2.sidebar.radio[0].options
+    assert "내 전시(0)" in at2.radio(key="page").options
 
 
 def test_ac8_tab_order_updated_at_desc_then_id(env):

@@ -125,10 +125,10 @@ def test_home_button_resets_page_and_filters(app_env):
     at.sidebar.multiselect(key="regions").set_value(["부산"]).run()
     at.sidebar.selectbox(key="period").set_value("전체").run()
     at.button(key="pick-3").click().run()
-    at.sidebar.radio[0].set_value(messages.PAGE_MY).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
     at.sidebar.button(key="home").click().run()
     assert not at.exception
-    assert at.sidebar.radio[0].value == messages.PAGE_FIND
+    assert at.radio(key="page").value == messages.PAGE_FIND
     assert at.sidebar.selectbox(key="period").value == "전시중"
     assert at.sidebar.multiselect(key="regions").value == ["서울"]
     assert messages.SELECT_EXHIBITION in [m.value for m in at.main.markdown]
@@ -157,11 +157,11 @@ def test_detail_without_info_shows_notice(app_env):
 def test_home_button_sets_widget_values_without_warning(app_env):
     """처음 화면 버튼은 위젯 값을 직접 기본값으로 넣어 브라우저의 라디오·필터도 바뀌게 하고, 경고는 없어야 한다."""
     at = AppTest.from_file(APP, default_timeout=30).run()
-    at.sidebar.radio[0].set_value(messages.PAGE_ASSISTANT).run()
+    at.radio(key="page").set_value(messages.PAGE_ASSISTANT).run()
     at.sidebar.button(key="home").click().run()
     assert not at.exception and not at.warning
     assert at.session_state["page"] == messages.PAGE_FIND
-    assert at.sidebar.radio[0].value == messages.PAGE_FIND
+    assert at.radio(key="page").value == messages.PAGE_FIND
     assert at.sidebar.selectbox(key="period").value == "전시중"
 
 
@@ -180,4 +180,4 @@ def test_root_entrypoint_runs_src_app(app_env):
     root_app = str(Path(APP).resolve().parent.parent / "app.py")
     at = AppTest.from_file(root_app, default_timeout=30).run()
     assert not at.exception
-    assert at.sidebar.radio[0].value == messages.PAGE_FIND
+    assert at.radio(key="page").value == messages.PAGE_FIND
