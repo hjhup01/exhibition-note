@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS saved_exhibition (
     review_rating INTEGER,
     review_text TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    photo_ids TEXT
 )
 """
 
@@ -65,6 +66,8 @@ def init_db(db_path) -> WriteResult:
             cols = {r[1] for r in conn.execute("PRAGMA table_info(saved_exhibition)")}
             if "actual_visit_date" not in cols:  # 이전 버전 DB: 실제 관람일 열을 추가한다
                 conn.execute("ALTER TABLE saved_exhibition ADD COLUMN actual_visit_date TEXT")
+            if "photo_ids" not in cols:  # 이전 버전 DB: 관람 사진 열을 추가한다
+                conn.execute("ALTER TABLE saved_exhibition ADD COLUMN photo_ids TEXT")
         return _OK
     except (OSError, sqlite3.Error):
         return WriteResult(False, messages.STORE_UNAVAILABLE)
@@ -206,6 +209,46 @@ def delete_review(db_path, exhibition_id, today: Optional[date] = None, now: Opt
             raise _Reject(messages.REVIEW_STATE)
         return "review_rating=NULL, review_text=NULL", []
     return _update(db_path, exhibition_id, step, now)
+
+
+def add_photo(db_path, exhibition_id, photo_id, now: Optional[datetime] = None) -> WriteResult:
+    """관람완료 기록에 사진 ID를 붙인다(전시당 photos.MAX_PHOTOS장까지)."""
+    from . import photos
+    if not isinstance(photo_id, str) or not photo_id:
+        return WriteResult(False, messages.PHOTO_UPLOAD_FAILED)
+
+    def step(row):
+        if row["status"] != STATUS_DONE:
+            raise _Reject(messages.PHOTO_STATE)
+        ids = photos.parse_ids(row["photo_ids"])
+        if len(ids) >= photos.MAX_PHOTOS:
+            raise _Reject(messages.PHOTO_LIMIT)
+        return "photo_ids=?", [photos.dump_ids(ids + [photo_id])]
+    return _update(db_path, exhibition_id, step, now)
+
+
+def remove_photo(db_path, exhibition_id, photo_id, now: Optional[datetime] = None) -> WriteResult:
+    """기록에서 사진 ID를 뺀다(없으면 NOT_FOUND)."""
+    from . import photos
+
+    def step(row):
+        ids = photos.parse_ids(row["photo_ids"])
+        if photo_id not in ids:
+            raise _Reject(messages.NOT_FOUND)
+        return "photo_ids=?", [photos.dump_ids([i for i in ids if i != photo_id])]
+    return _update(db_path, exhibition_id, step, now)
+
+
+def photo_ids_of(db_path, exhibition_id) -> list:
+    """그 기록의 사진 ID 목록(없으면 [])."""
+    from . import photos
+    try:
+        with closing(_connect(db_path)) as conn:
+            row = conn.execute("SELECT photo_ids FROM saved_exhibition WHERE exhibition_id = ?",
+                               (exhibition_id,)).fetchone()
+        return photos.parse_ids(row["photo_ids"]) if row else []
+    except Exception:
+        return []
 
 
 def delete(db_path, exhibition_id) -> WriteResult:

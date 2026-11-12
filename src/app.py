@@ -5,8 +5,8 @@ from datetime import timedelta
 import streamlit as st
 from dotenv import load_dotenv
 
-from exhibition_app import (config, culture_api, filters, google_drive, llm_status, messages, native_auth, repository,
-                            search_api, storage, summarizer)
+from exhibition_app import (config, culture_api, filters, google_drive, llm_status, messages, native_auth, photos,
+                            repository, search_api, storage, summarizer)
 
 _STORE = None  # 이번 실행의 저장소(LocalStorage 또는 SheetStorage). main()이 정한다.
 NATIVE = "native"  # 구글 설정 대신 쓰는 표시: Streamlit 내장 로그인(st.login, 같은 창)을 쓴다
@@ -545,6 +545,100 @@ def _render_done(db_path, r, today):
     with c2:
         if has_review and st.button(messages.REVIEW_DELETE_BUTTON, key=f"review-del-{eid}"):
             _flash(repository.delete_review(db_path, eid, today=today), messages.REVIEW_DELETED_DONE)
+    _render_photos(db_path, r, editable=True)
+
+
+PHOTO_WIDTH = 150        # 관람완료 탭의 사진 폭(px)
+PHOTO_THUMB_WIDTH = 96   # 전체 탭의 작은 사진 폭(px)
+
+
+def _photo_bytes(photo_id):
+    """저장소에서 사진을 읽는다. 실패하면 None(화면에는 '불러오지 못했습니다')."""
+    try:
+        return _STORE.load_photo(photo_id)
+    except google_drive.AuthExpired:
+        _forget_login()
+    except Exception:
+        pass
+    return None
+
+
+def _render_photos(db_path, r, editable):
+    """관람 사진: 작은 사진 줄(마우스를 올리면 크게 보기). editable이면 사진별 삭제와 올리기 칸."""
+    eid = r["exhibition_id"]
+    ids = photos.parse_ids(r.get("photo_ids"))
+    if not ids and not editable:
+        return
+    if editable:
+        st.markdown(f"**{messages.PHOTO_HEADING.format(count=len(ids), limit=photos.MAX_PHOTOS)}**")
+        st.caption(messages.PHOTO_NOTE if getattr(_STORE, "kind", "") == "google" else messages.PHOTO_NOTE_LOCAL)
+    if ids:
+        row = st.container(horizontal=True, gap="small", key=f"photos-{'edit' if editable else 'view'}-{eid}")
+        for pid in ids:
+            with row.container(width="content"):
+                data = _photo_bytes(pid)
+                if data:
+                    st.image(data, width=PHOTO_WIDTH if editable else PHOTO_THUMB_WIDTH)
+                else:
+                    st.caption(messages.PHOTO_LOAD_FAILED)
+                if editable and st.button(messages.PHOTO_DELETE_BUTTON, key=f"photo-del-{eid}-{pid}",
+                                          icon=":material/delete:"):
+                    _delete_photo(db_path, eid, pid)
+    if editable and len(ids) < photos.MAX_PHOTOS:
+        turn = st.session_state.get(f"photo-turn-{eid}", 0)  # 올린 뒤 고르기 칸을 비우려고 key를 바꾼다
+        picked = st.file_uploader(messages.PHOTO_UPLOAD_LABEL, type=photos.ACCEPTED_TYPES,
+                                  key=f"photo-up-{eid}-{turn}")
+        if picked is not None and st.button(messages.PHOTO_UPLOAD_BUTTON, key=f"photo-add-{eid}", type="primary",
+                                            icon=":material/upload:"):
+            _add_photo(db_path, eid, picked)
+
+
+def _add_photo(db_path, eid, picked):
+    """사진을 줄여 저장소에 올리고 기록에 붙인다. 기록에 못 붙이면 올린 사진을 지운다."""
+    try:
+        data = photos.prepare_image(picked.getvalue())
+        photo_id = _STORE.save_photo(f"{eid}-{picked.name}", data, photos.MIME)
+    except photos.PhotoError as e:
+        st.session_state["flash"] = str(e)
+        st.rerun()
+    except google_drive.AuthExpired as e:
+        _forget_login()
+        st.session_state["flash"] = str(e)
+        st.rerun()
+    except Exception:
+        st.session_state["flash"] = messages.PHOTO_UPLOAD_FAILED
+        st.rerun()
+    result = repository.add_photo(db_path, eid, photo_id)
+    if result.ok:
+        st.session_state[f"photo-turn-{eid}"] = st.session_state.get(f"photo-turn-{eid}", 0) + 1
+    else:
+        _forget_photo(photo_id)
+    _flash(result, messages.PHOTO_ADDED_DONE)
+
+
+def _forget_photo(photo_id):
+    """저장소에서 사진 파일을 지운다(실패해도 기록에는 영향 없음)."""
+    try:
+        _STORE.delete_photo(photo_id)
+    except Exception:
+        pass
+
+
+def _delete_photo(db_path, eid, photo_id):
+    result = repository.remove_photo(db_path, eid, photo_id)
+    if result.ok:
+        _forget_photo(photo_id)
+    _flash(result, messages.PHOTO_DELETED_DONE)
+
+
+def _delete_record(db_path, eid):
+    """전시 기록을 지우면 그 기록의 사진 파일도 지운다."""
+    ids = repository.photo_ids_of(db_path, eid)
+    result = repository.delete(db_path, eid)
+    if result.ok:
+        for pid in ids:
+            _forget_photo(pid)
+    _flash(result, messages.RECORD_DELETED_DONE)
 
 
 _STATUS_CONTROLS = {
@@ -596,6 +690,7 @@ def _render_all_card(r):
         if r["review_rating"] is not None:
             st.write("★" * r["review_rating"] + "☆" * (5 - r["review_rating"]))
             st.write(r["review_text"])
+        _render_photos(None, r, editable=False)
 
 
 def _render_my(db_path, today):
@@ -623,7 +718,7 @@ def _render_my(db_path, today):
                             st.caption(" · ".join(d for d in dates if d))
                     _STATUS_CONTROLS[status](db_path, r, today)
                     if st.button(messages.DELETE_RECORD_BUTTON, key=f"del-{r['exhibition_id']}"):
-                        _flash(repository.delete(db_path, r["exhibition_id"]), messages.RECORD_DELETED_DONE)
+                        _delete_record(db_path, r["exhibition_id"])
 
 
 def _render_assistant():

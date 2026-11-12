@@ -12,3 +12,6 @@ baseRadius = "0.6rem"
 [theme.sidebar]
 backgroundColor = "#101114"
 secondaryBackgroundColor = "#1f2026"
+
+[server]
+maxUploadSize = 10  # 관람 사진 올리기 한도(MB). exhibition_app/photos.py의 MAX_UPLOAD_BYTES와 같게 둔다

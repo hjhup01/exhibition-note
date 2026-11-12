@@ -21,6 +21,10 @@ AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets"
+UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
+UPLOAD_TIMEOUT_SECONDS = 30  # 사진 올리기는 시간이 더 걸릴 수 있다
+PHOTO_FOLDER_TITLE = "전시노트 사진"
+FOLDER_MIME = "application/vnd.google-apps.folder"
 SCOPES = ("openid", "email", "https://www.googleapis.com/auth/drive.file")
 TIMEOUT_SECONDS = 10
 STATE_MAX_AGE_SECONDS = 1800  # 2단계 인증 등으로 시간이 걸려도 만료되지 않게 30분
@@ -30,9 +34,9 @@ SPREADSHEET_TITLE = "전시노트 기록"
 SHEET_NAME = "saved_exhibition"
 COLUMNS = ("exhibition_id", "title", "category", "region", "place", "start_date", "end_date",
            "status", "planned_visit_date", "actual_visit_date", "review_rating", "review_text",
-           "created_at", "updated_at")
+           "created_at", "updated_at", "photo_ids")  # photo_ids는 나중에 추가(예전 시트는 빈 칸으로 읽힌다)
 _INT_COLUMNS = {"review_rating"}
-_LAST_COL = chr(ord("A") + len(COLUMNS) - 1)  # 'N'
+_LAST_COL = chr(ord("A") + len(COLUMNS) - 1)  # 'O'
 
 
 class GoogleError(Exception):
@@ -185,19 +189,60 @@ class SheetClient:
         self._headers = {"Authorization": f"Bearer {access_token}"}
         self._http = http or requests
 
-    def _call(self, method, url, **kw):
+    def _send(self, method, url, failure, timeout=TIMEOUT_SECONDS, headers=None, **kw):
         try:
-            resp = self._http.request(method, url, headers=self._headers, timeout=TIMEOUT_SECONDS, **kw)
+            resp = self._http.request(method, url, headers={**self._headers, **(headers or {})}, timeout=timeout,
+                                      **kw)
         except Exception:
-            raise GoogleError(messages.GOOGLE_SHEET_FAILED) from None
+            raise GoogleError(failure) from None
         if resp.status_code == 401:
             raise AuthExpired(messages.GOOGLE_LOGIN_EXPIRED)
         if resp.status_code >= 400:
-            raise GoogleError(messages.GOOGLE_SHEET_FAILED)
+            raise GoogleError(failure)
+        return resp
+
+    def _call(self, method, url, failure=messages.GOOGLE_SHEET_FAILED, **kw):
+        resp = self._send(method, url, failure, **kw)
         try:
             return resp.json() if resp.content else {}
         except ValueError:
-            raise GoogleError(messages.GOOGLE_SHEET_FAILED) from None
+            raise GoogleError(failure) from None
+
+    # ---------- 관람 사진: 사용자 드라이브의 '전시노트 사진' 폴더 ----------
+
+    def find_or_create_photo_folder(self):
+        q = f"name = '{PHOTO_FOLDER_TITLE}' and mimeType = '{FOLDER_MIME}' and trashed = false"
+        found = self._call("GET", DRIVE_FILES_URL, messages.PHOTO_UPLOAD_FAILED,
+                           params={"q": q, "spaces": "drive", "fields": "files(id)", "pageSize": 10})
+        files = found.get("files") or []
+        if files:
+            return files[0]["id"]
+        created = self._call("POST", DRIVE_FILES_URL, messages.PHOTO_UPLOAD_FAILED,
+                             json={"name": PHOTO_FOLDER_TITLE, "mimeType": FOLDER_MIME}, params={"fields": "id"})
+        if not created.get("id"):
+            raise GoogleError(messages.PHOTO_UPLOAD_FAILED)
+        return created["id"]
+
+    def upload_photo(self, folder_id, name, data, mime="image/jpeg"):
+        """사진 파일을 폴더에 올리고 파일 ID를 돌려준다(multipart 업로드)."""
+        boundary = "exhibition-note-photo-boundary"
+        meta = json.dumps({"name": name, "parents": [folder_id], "mimeType": mime}).encode()
+        body = (f"--{boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n".encode() + meta
+                + f"\r\n--{boundary}\r\nContent-Type: {mime}\r\n\r\n".encode() + data
+                + f"\r\n--{boundary}--".encode())
+        created = self._call("POST", UPLOAD_URL, messages.PHOTO_UPLOAD_FAILED, timeout=UPLOAD_TIMEOUT_SECONDS,
+                             params={"uploadType": "multipart", "fields": "id"},
+                             headers={"Content-Type": f"multipart/related; boundary={boundary}"}, data=body)
+        if not created.get("id"):
+            raise GoogleError(messages.PHOTO_UPLOAD_FAILED)
+        return created["id"]
+
+    def download_photo(self, file_id):
+        return self._send("GET", f"{DRIVE_FILES_URL}/{file_id}", messages.PHOTO_LOAD_FAILED,
+                          timeout=UPLOAD_TIMEOUT_SECONDS, params={"alt": "media"}).content
+
+    def delete_photo(self, file_id):
+        self._send("DELETE", f"{DRIVE_FILES_URL}/{file_id}", messages.PHOTO_UPLOAD_FAILED)
 
     def find_or_create(self):
         """사용자 드라이브에서 '전시노트 기록'을 찾고, 없으면 머리글만 있는 새 시트를 만든다. spreadsheetId 반환."""

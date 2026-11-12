@@ -7,8 +7,10 @@
 올리기에 실패하면 임시 파일을 버려 다음 실행 때 시트 내용으로 되돌아간다.
 """
 import os
+import re
 import sqlite3
 import tempfile
+import uuid
 from contextlib import closing
 
 from . import config, google_drive, repository
@@ -28,6 +30,37 @@ class LocalStorage:
 
     def after_write(self):
         pass
+
+    # 관람 사진: DB 파일 옆 photos 폴더에 <uuid>.jpg로 둔다
+    def _photo_dir(self):
+        return os.path.join(os.path.dirname(os.path.abspath(str(self.db_path))), "photos")
+
+    def _photo_path(self, photo_id):
+        if not _LOCAL_PHOTO_ID.fullmatch(str(photo_id)):  # 경로 조작 방지: 우리가 만든 이름만
+            return None
+        return os.path.join(self._photo_dir(), photo_id)
+
+    def save_photo(self, name, data, mime="image/jpeg"):
+        os.makedirs(self._photo_dir(), exist_ok=True)
+        photo_id = f"{uuid.uuid4().hex}.jpg"
+        with open(self._photo_path(photo_id), "wb") as f:
+            f.write(data)
+        return photo_id
+
+    def load_photo(self, photo_id):
+        path = self._photo_path(photo_id)
+        if not path or not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            return f.read()
+
+    def delete_photo(self, photo_id):
+        path = self._photo_path(photo_id)
+        if path and os.path.exists(path):
+            os.remove(path)
+
+
+_LOCAL_PHOTO_ID = re.compile(r"[0-9a-f]{32}\.jpg")
 
 
 def _load_into_db(db_path, rows):
@@ -77,6 +110,24 @@ class SheetStorage:
         except Exception:
             self.reset()
             raise
+
+    # 관람 사진: 사용자 드라이브의 '전시노트 사진' 폴더. 받은 사진은 세션 동안 기억한다(다시 그릴 때마다 받지 않게).
+    def save_photo(self, name, data, mime="image/jpeg"):
+        folder = self.cache.get("photo_folder") or self.client.find_or_create_photo_folder()
+        self.cache["photo_folder"] = folder
+        photo_id = self.client.upload_photo(folder, name, data, mime)
+        self.cache.setdefault("photos", {})[photo_id] = data
+        return photo_id
+
+    def load_photo(self, photo_id):
+        got = self.cache.setdefault("photos", {})
+        if photo_id not in got:
+            got[photo_id] = self.client.download_photo(photo_id)
+        return got[photo_id]
+
+    def delete_photo(self, photo_id):
+        self.cache.setdefault("photos", {}).pop(photo_id, None)
+        self.client.delete_photo(photo_id)
 
     def reset(self):
         path = self.cache.pop("db_path", None)

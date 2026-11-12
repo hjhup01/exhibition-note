@@ -124,7 +124,7 @@ def test_rows_roundtrip_with_types_and_blanks():
     rows = [{"exhibition_id": "319005", "title": "A", "category": "전시", "region": "서울", "place": "P",
              "start_date": "2026-01-01", "end_date": "2026-12-31", "status": "관람완료",
              "planned_visit_date": "2026-11-01", "actual_visit_date": "2026-11-02", "review_rating": 4,
-             "review_text": "좋음", "created_at": "t1", "updated_at": "t2"},
+             "review_text": "좋음", "created_at": "t1", "updated_at": "t2", "photo_ids": "[\"f1\", \"f2\"]"},
             {**{c: None for c in google_drive.COLUMNS}, "exhibition_id": "2", "title": "B", "status": "관심"}]
     client.write_rows("S9", rows)
     assert http.calls[-2][1].endswith(":clear") and http.calls[-1][2] == {"valueInputOption": "RAW"}
