@@ -22,21 +22,42 @@ def _load_exhibitions():
     return st.session_state["exhibitions"]
 
 
+def _retry_load():
+    """'다시 불러오기': 실패로 기억해 둔 목록(현재·지난 전시)을 지워 다음 화면에서 다시 조회한다."""
+    if st.session_state.get("exhibitions") is None:
+        st.session_state.pop("exhibitions", None)
+    cache = st.session_state.get("past_cache") or {}
+    for k in [k for k, v in cache.items() if v[0] is None]:
+        del cache[k]
+
+
 def _period_text(e):
     return f"{e.start_date} ~ {e.end_date}"
 
 
+DETAIL_CACHE_SIZE = 20  # 최근 본 전시 몇 개까지 상세(검색·요약)를 기억할지
+
+
 def _detail_data(exhibition):
-    """선택이 바뀔 때만 카카오 검색·LLM을 호출하고 선택이 유지되는 동안 session_state에 캐시한다."""
+    """처음 보는 전시만 카카오 검색·LLM을 호출하고, 최근 본 전시 DETAIL_CACHE_SIZE개는 세션에 기억한다
+    (다시 누르면 바로 열리고 AI 호출도 다시 하지 않는다)."""
     cache = st.session_state.get("detail_cache")
-    if cache is None or cache["id"] != exhibition.exhibition_id:
-        # 제목 핵심어가 들어 있는 글만 보여 주고 요약한다(엉뚱한 전시 글이 요약되지 않게)
-        related = search_api.load_related(exhibition.title, place=exhibition.place, only_relevant=True)
-        summary = summarizer.summarize(related["web"]["items"], related["blogs"]["items"], title=exhibition.title)
-        info = culture_api.fetch_detail(exhibition.exhibition_id)
-        cache = {"id": exhibition.exhibition_id, "related": related, "summary": summary, "info": info}
-        st.session_state["detail_cache"] = cache
-    return cache
+    if not isinstance(cache, dict) or "id" in cache:  # 예전 형식(전시 1개)이면 새로 시작
+        cache = st.session_state["detail_cache"] = {}
+    eid = exhibition.exhibition_id
+    if eid not in cache:
+        with st.spinner(messages.DETAIL_LOADING):
+            # 제목 핵심어가 들어 있는 글만 보여 주고 요약한다(엉뚱한 전시 글이 요약되지 않게)
+            related = search_api.load_related(exhibition.title, place=exhibition.place, only_relevant=True)
+            summary = summarizer.summarize(related["web"]["items"], related["blogs"]["items"],
+                                           title=exhibition.title)
+            info = culture_api.fetch_detail(eid)
+        cache[eid] = {"id": eid, "related": related, "summary": summary, "info": info}
+        while len(cache) > DETAIL_CACHE_SIZE:  # 가장 오래 전에 본 것부터 버린다
+            cache.pop(next(iter(cache)))
+    else:
+        cache[eid] = cache.pop(eid)  # 최근 본 것으로 뒤로 옮긴다
+    return cache[eid]
 
 
 def _flash(result, ok_text=None):
@@ -246,6 +267,13 @@ div[class*="st-key-save-"] button:hover {{
     background-color: {SAVE_BUTTON_HOVER} !important; border-color: {SAVE_BUTTON_HOVER} !important;
 }}
 div[class*="st-key-save-"] button:disabled {{ opacity: 0.45; }}
+/* 휴대폰(좁은 화면): 두 칸이 세로로 쌓이므로 목록은 화면 절반 높이로, 상세는 내용 길이만큼 */
+@media (max-width: 640px) {{
+    .st-key-list-pane {{ height: auto !important; max-height: 55vh !important; }}
+    .st-key-detail-pane {{ height: auto !important; max-height: none !important; }}
+    .info-grid {{ grid-template-columns: 1fr; }}
+    .st-key-detail-hero {{ flex-wrap: wrap !important; }}
+}}
 </style>
 """
 
@@ -279,14 +307,15 @@ def list_pane_title(region, period, districts=None, past_range=None):
     return f"{where} - {period_text} 목록"
 
 
-_FILTER_KEYS = ("page", "period", "regions", "keyword", "art-only", "past-range", "selected_id", "detail_cache")
+_FILTER_KEYS = ("page", "period", "regions", "keyword", "art-only", "sort", "past-range", "selected_id")
 
 
 def _go_home():
     """처음 화면으로: 페이지·필터·선택을 기본값으로 되돌린다(로그인·대화 기록은 유지)."""
     # 화면에 보이는 위젯은 키를 지우기만 하면 브라우저 쪽 값이 남을 수 있어, 기본값을 직접 넣는다.
     widget_defaults = {"page": messages.PAGE_FIND, "period": DEFAULT_PERIOD, "regions": [DEFAULT_REGION],
-                       "keyword": "", "art-only": False}
+                       "keyword": "", "art-only": False,
+                       "sort": messages.SORT_DEFAULT}
     for k in list(st.session_state.keys()):
         if str(k).startswith("districts-"):
             st.session_state[k] = []
@@ -486,7 +515,7 @@ def _render_my(db_path, today):
     tabs = st.tabs([messages.TAB_ALL, *messages.TAB_LABELS])
     with tabs[0], st.container(key="all-tab"):
         _render_all(db_path)
-    for i, (tab, status) in enumerate(zip(tabs[1:], repository.STATUSES)):
+    for i, (tab, status) in enumerate(zip(tabs[1:], repository.STATUSES, strict=True)):
         with tab, st.container(key=f"status-tab-{i}"):
             rows = repository.list_by_status(db_path, status)
             if not rows:
@@ -605,9 +634,12 @@ def main():
             messages.FILTER_DISTRICT_LABEL, d_options, placeholder=messages.FILTER_DISTRICT_PLACEHOLDER, key=d_key)
     keyword = st.sidebar.text_input(messages.FILTER_KEYWORD_LABEL, key="keyword")
     art_only = st.sidebar.checkbox(messages.FILTER_ART_ONLY_LABEL, key="art-only")
+    st.session_state.setdefault("sort", messages.SORT_DEFAULT)
+    order = st.sidebar.selectbox(messages.FILTER_SORT_LABEL, messages.SORT_OPTIONS, key="sort")
 
     shown = filters.filter_exhibitions(base, today, messages.PERIOD_ALL if period == messages.PERIOD_PAST else period,
                                        regions, keyword, art_only=art_only, districts=districts)
+    shown = filters.sort_exhibitions(shown, order)
     selected_id = st.session_state.get("selected_id")
     selected = next((e for e in shown if e.exhibition_id == selected_id), None)
 
@@ -627,6 +659,7 @@ def main():
             st.caption(past_note)
         if exhibitions is None:
             st.write(messages.CULTURE_FAILED)
+            st.button(messages.RETRY_BUTTON, key="retry-load", icon="🔄", on_click=_retry_load)
         elif not shown:
             st.write(messages.NO_RESULT)
         for e in shown:

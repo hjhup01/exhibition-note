@@ -51,6 +51,19 @@ def district_options(base, region) -> list:
     return sorted({e.district for e in base if e.region == region and getattr(e, "district", "")})
 
 
+def sort_exhibitions(items, order) -> list:
+    """정렬: 기본순(받은 순서 그대로)·끝나는 날짜 빠른순·시작일 최신순·제목순. 같은 값이면 원래 순서를 지킨다."""
+    from .messages import SORT_ENDING, SORT_NEWEST, SORT_TITLE
+    items = list(items)
+    if order == SORT_ENDING:
+        return sorted(items, key=lambda e: e.end_date or "9999")
+    if order == SORT_NEWEST:
+        return sorted(items, key=lambda e: e.start_date or "", reverse=True)
+    if order == SORT_TITLE:
+        return sorted(items, key=lambda e: (e.title or "").strip())
+    return items
+
+
 def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, keyword="",
                        art_only=False, districts=None) -> list:
     """region: '전체' 또는 시·도 하나(str) 또는 여러 개(list, 비면 전체).

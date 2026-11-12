@@ -56,7 +56,8 @@ def test_ac3_messages_are_exact():
 @pytest.mark.parametrize("exc", [requests.Timeout("k"), requests.ConnectionError(), RuntimeError("x")])
 def test_ac3_exception_shows_failure(monkeypatch, exc):
     at = run_app(monkeypatch, exc=exc)
-    assert FAILED in texts(at) and not at.main.button
+    # 전시 버튼은 없고, 다시 불러오기 버튼만 있다
+    assert FAILED in texts(at) and [b.key for b in at.main.button] == ["retry-load"]
 
 
 @pytest.mark.parametrize("status", [400, 500, 503])

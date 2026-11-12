@@ -34,6 +34,14 @@ PERIOD_ALL = ALL
 REGION_ALL = ALL
 
 CULTURE_FAILED = "전시 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+RETRY_BUTTON = "다시 불러오기"
+DETAIL_LOADING = "전시 정보를 불러오는 중…"
+FILTER_SORT_LABEL = "정렬"
+SORT_DEFAULT = "기본순"
+SORT_ENDING = "끝나는 날짜 빠른순"
+SORT_NEWEST = "시작일 최신순"
+SORT_TITLE = "제목순"
+SORT_OPTIONS = [SORT_DEFAULT, SORT_ENDING, SORT_NEWEST, SORT_TITLE]
 RELATED_FAILED = "관련 글을 불러오지 못했습니다."
 NO_RESULT = "결과 없음"
 ALREADY_SAVED = "이미 저장된 전시입니다"
