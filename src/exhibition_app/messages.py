@@ -50,6 +50,11 @@ GOOGLE_LOGIN_EXPIRED = "구글 로그인이 만료되었습니다. 다시 로그
 GOOGLE_SCOPE_MISSING = "드라이브 파일 접근을 허용해야 기록을 저장할 수 있습니다. 다시 로그인하고 권한을 허용해 주세요."
 GOOGLE_SHEET_FAILED = "구글 시트에 접근하지 못했습니다. 잠시 후 다시 시도해 주세요."
 GOOGLE_STATE_INVALID = "로그인 요청이 만료되었거나 올바르지 않습니다. 다시 로그인해 주세요."
+GOOGLE_LOGIN_DONE = "로그인되었습니다. 이 창에서 이어서 쓰세요. 로그인 버튼을 눌렀던 이전 창은 닫아도 됩니다."
+GOOGLE_LOGIN_HINT = "로그인은 새 창(탭)에서 진행되고, 끝나면 그 창에서 이어서 쓰면 됩니다. 관리자가 등록한 구글 계정만 로그인할 수 있습니다."
+GOOGLE_ACCESS_DENIED = "로그인이 취소되었거나 이 앱에 등록되지 않은 구글 계정입니다. 등록된 계정으로 다시 로그인해 주세요."
+GOOGLE_IN_APP_BROWSER = "카카오톡·인스타그램 같은 앱 안의 브라우저에서는 구글이 로그인을 막습니다. 오른쪽 위 메뉴에서 '다른 브라우저로 열기'를 눌러 크롬이나 사파리로 열어 주세요."
+GOOGLE_REDIRECT_MISMATCH = "로그인 설정 주소(GOOGLE_REDIRECT_URI: {want})가 지금 접속한 주소({host})와 달라 로그인이 실패할 수 있습니다. 관리자에게 알려 주세요."
 
 INVALID_TRANSITION = "허용되지 않는 상태 변경입니다."
 INVALID_PLANNED_DATE = "관람예정일은 실제 날짜(YYYY-MM-DD)로 입력해 주세요."

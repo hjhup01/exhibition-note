@@ -35,7 +35,7 @@ def test_oauth_settings_off_without_client_and_default_redirect():
 def test_state_is_signed_and_expires():
     st_ = google_drive.make_state(SECRET, now=1000)
     assert google_drive.verify_state(st_, SECRET, now=1000 + 599)
-    assert not google_drive.verify_state(st_, SECRET, now=1000 + 601)
+    assert not google_drive.verify_state(st_, SECRET, now=1000 + google_drive.STATE_MAX_AGE_SECONDS + 1)
     assert not google_drive.verify_state(st_, "other-secret", now=1001)
     assert not google_drive.verify_state("1000.deadbeef", SECRET, now=1001)
     assert not google_drive.verify_state(None, SECRET)
@@ -278,3 +278,67 @@ def test_redirect_with_bad_state_is_rejected(google_env, monkeypatch):
     at.run()
     assert "google" not in at.session_state
     assert messages.GOOGLE_STATE_INVALID in texts(at)
+
+
+# ---------- 로그인 점검 보완 ----------
+
+def test_auth_url_does_not_force_account_chooser():
+    url = google_drive.auth_url("cid", "http://localhost:8501", "st")
+    assert "prompt=" not in url
+
+
+def test_state_valid_for_30_minutes():
+    st_ = google_drive.make_state(SECRET, now=1000)
+    assert google_drive.verify_state(st_, SECRET, now=1000 + 1799)
+    assert not google_drive.verify_state(st_, SECRET, now=1000 + 1801)
+
+
+@pytest.mark.parametrize("ua,expected", [
+    ("Mozilla/5.0 (iPhone) AppleWebKit KAKAOTALK 10.4.5", True),
+    ("Mozilla/5.0 (Linux; Android 14; SM-S918N; wv) AppleWebKit Chrome/120 Mobile", True),
+    ("Mozilla/5.0 (iPhone) Instagram 300.0", True),
+    ("Mozilla/5.0 (Windows NT 10.0) AppleWebKit Chrome/131 Safari/537.36 Edg/131", False),
+    ("Mozilla/5.0 (iPhone) AppleWebKit Version/18.0 Mobile Safari/604.1", False),
+    ("", False),
+])
+def test_in_app_browser_detection(ua, expected):
+    assert google_drive.is_in_app_browser(ua) is expected
+
+
+@pytest.mark.parametrize("host,redirect,expected", [
+    ("localhost:8501", "http://localhost:8501", False),
+    ("127.0.0.1:8501", "http://localhost:8501", False),
+    ("localhost:8502", "http://localhost:8501", True),
+    ("exhibition-note.streamlit.app", "https://exhibition-note.streamlit.app", False),
+    ("exhibition-note.streamlit.app", "http://localhost:8501", True),
+    ("", "http://localhost:8501", False),
+])
+def test_redirect_host_mismatch(host, redirect, expected):
+    assert google_drive.redirect_host_mismatch(host, redirect) is expected
+
+
+def test_login_error_messages():
+    assert google_drive.login_error_message("access_denied") == messages.GOOGLE_ACCESS_DENIED
+    assert google_drive.login_error_message("server_error") == messages.GOOGLE_LOGIN_FAILED
+
+
+def test_redirect_success_shows_continue_here_message(google_env, monkeypatch):
+    monkeypatch.setattr(google_drive, "exchange_code",
+                        lambda code, cid, secret, redirect: {"access_token": "AT", "email": "me@gmail.com"})
+    at = AppTest.from_file(APP, default_timeout=30)
+    at.query_params["code"] = "c"
+    at.query_params["state"] = google_drive.make_state(SECRET)
+    at.run()
+    assert messages.GOOGLE_LOGIN_DONE in texts(at)
+
+
+def test_redirect_access_denied_explains_cause(google_env):
+    at = AppTest.from_file(APP, default_timeout=30)
+    at.query_params["error"] = "access_denied"
+    at.run()
+    assert "google" not in at.session_state and messages.GOOGLE_ACCESS_DENIED in texts(at)
+
+
+def test_login_button_has_hint(google_env):
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert messages.GOOGLE_LOGIN_HINT in [c.value for c in at.sidebar.caption]

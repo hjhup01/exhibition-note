@@ -23,7 +23,7 @@ DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 SHEETS_URL = "https://sheets.googleapis.com/v4/spreadsheets"
 SCOPES = ("openid", "email", "https://www.googleapis.com/auth/drive.file")
 TIMEOUT_SECONDS = 10
-STATE_MAX_AGE_SECONDS = 600
+STATE_MAX_AGE_SECONDS = 1800  # 2단계 인증 등으로 시간이 걸려도 만료되지 않게 30분
 DEFAULT_REDIRECT_URI = "http://localhost:8501"
 
 SPREADSHEET_TITLE = "전시노트 기록"
@@ -79,7 +79,40 @@ def auth_url(client_id, redirect_uri, state):
     return AUTH_URL + "?" + urlencode({
         "client_id": client_id, "redirect_uri": redirect_uri, "response_type": "code",
         "scope": " ".join(SCOPES), "state": state, "access_type": "online",
-        "include_granted_scopes": "true", "prompt": "select_account"})
+        "include_granted_scopes": "true"})
+    # prompt=select_account를 빼서, 한 번 허용한 계정은 다음 로그인 때 계정 선택·동의 없이 바로 돌아오게 한다
+
+
+_IN_APP_MARKERS = ("kakaotalk", "naver(inapp", "instagram", "fban", "fbav", "line/", "daumapps", "everytimeapp",
+                   "; wv)")
+
+
+def is_in_app_browser(user_agent):
+    """카카오톡·인스타그램·네이버 앱 등 앱 안의 브라우저(WebView)인지. 구글은 이런 곳에서 로그인을 막는다
+    (오류: 403 disallowed_useragent)."""
+    ua = (user_agent or "").lower()
+    return any(m in ua for m in _IN_APP_MARKERS)
+
+
+def redirect_host_mismatch(request_host, redirect_uri):
+    """지금 접속한 주소(Host)와 로그인 후 돌아올 주소(GOOGLE_REDIRECT_URI)의 호스트가 다른지.
+    다르면 로그인 후 다른 주소로 돌아가거나 구글이 redirect_uri_mismatch로 막는다."""
+    from urllib.parse import urlparse
+    if not request_host or not redirect_uri:
+        return False
+    def norm(netloc):  # localhost와 127.0.0.1은 같은 곳으로 본다
+        return netloc.strip().lower().replace("127.0.0.1", "localhost")
+
+    host = norm(request_host.split(",")[0])
+    want = norm(urlparse(redirect_uri).netloc or "")
+    return bool(want) and host != want
+
+
+def login_error_message(error):
+    """구글이 ?error=…로 돌려보낸 이유를 사용자용 문구로."""
+    if error == "access_denied":
+        return messages.GOOGLE_ACCESS_DENIED
+    return messages.GOOGLE_LOGIN_FAILED
 
 
 def _email_from_id_token(id_token):

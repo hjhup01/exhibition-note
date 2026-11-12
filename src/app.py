@@ -60,16 +60,17 @@ def _handle_google_redirect(settings):
     if "code" not in qp and "error" not in qp:
         return
     cid, secret, redirect = settings
-    code, state = qp.get("code"), qp.get("state")
+    code, state, error = qp.get("code"), qp.get("state"), qp.get("error")
     st.query_params.clear()
     if not code:
-        st.session_state["flash"] = messages.GOOGLE_LOGIN_FAILED
+        st.session_state["flash"] = google_drive.login_error_message(error)
     elif not google_drive.verify_state(state, secret):
         st.session_state["flash"] = messages.GOOGLE_STATE_INVALID
     else:
         try:
             st.session_state["google"] = google_drive.exchange_code(code, cid, secret, redirect)
             st.session_state.pop("sheet_cache", None)
+            st.session_state["flash"] = messages.GOOGLE_LOGIN_DONE
         except google_drive.GoogleError as e:
             st.session_state["flash"] = str(e)
     st.rerun()
@@ -110,9 +111,24 @@ def _render_google_account(settings):
             st.rerun()
     else:
         cid, secret, redirect = settings
+        headers = _request_headers()
+        if google_drive.is_in_app_browser(headers.get("user-agent")):
+            st.sidebar.warning(messages.GOOGLE_IN_APP_BROWSER)
+        if google_drive.redirect_host_mismatch(headers.get("x-forwarded-host") or headers.get("host"), redirect):
+            st.sidebar.error(messages.GOOGLE_REDIRECT_MISMATCH.format(
+                want=redirect, host=headers.get("x-forwarded-host") or headers.get("host")))
         st.sidebar.link_button(messages.GOOGLE_LOGIN_BUTTON,
                                google_drive.auth_url(cid, redirect, google_drive.make_state(secret)),
-                               type="primary", icon="🔑")
+                               type="primary", icon="🔑", use_container_width=True)
+        st.sidebar.caption(messages.GOOGLE_LOGIN_HINT)
+
+
+def _request_headers():
+    """브라우저 요청 헤더(소문자 키). 테스트·구버전 등 헤더가 없으면 빈 dict."""
+    try:
+        return {str(k).lower(): v for k, v in dict(st.context.headers).items()}
+    except Exception:
+        return {}
 
 
 DEFAULT_PERIOD = messages.PERIOD_ONGOING  # 처음 화면의 기간 필터
