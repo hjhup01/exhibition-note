@@ -1,7 +1,6 @@
 """에이전트 스택 단위 테스트: 가드레일, RAG 검색, 도구, LangGraph 그래프(가짜 LLM), POST /query API."""
-import json
 from datetime import date
-from typing import Any, List, Optional
+from typing import Any, List
 
 import pytest
 from fastapi.testclient import TestClient

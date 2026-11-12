@@ -297,11 +297,9 @@ div[class*="st-key-save-"] button:disabled {{ opacity: 0.45; }}
 .st-key-filter-card {{ background: {FILTER_CARD_BG} !important; border: 1px solid {FILTER_CARD_LINE} !important;
     border-top: 3px solid {SAVE_BUTTON_COLOR} !important; border-radius: 9px !important;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }}
-.st-key-filter-card [data-baseweb="select"] > div, .st-key-filter-card [data-baseweb="input"],
-.st-key-filter-card [data-baseweb="input"] input, .st-key-filter-card [data-baseweb="base-input"] {{
-    background-color: {FILTER_INPUT_BG} !important; }}
-.st-key-filter-card [data-baseweb="select"] > div, .st-key-filter-card [data-baseweb="input"] {{
-    border-color: {FILTER_CARD_LINE} !important; }}
+/* 입력 칸(Streamlit 1.67: 선택 칸·날짜 칸은 react-aria [role=group], 글자 칸은 stTextInputRootElement) */
+.st-key-filter-card [role="group"], .st-key-filter-card [data-testid="stTextInputRootElement"] {{
+    background-color: {FILTER_INPUT_BG} !important; border-color: {FILTER_CARD_LINE} !important; }}
 .filter-title {{ font-size: 0.78rem; font-weight: 700; color: {ACCENT_TEXT}; letter-spacing: 0.08em; }}
 .st-key-reset-filters button {{ background: transparent !important; border: 0 !important; padding: 0 !important;
     min-height: 0 !important; }}

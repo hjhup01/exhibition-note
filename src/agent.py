@@ -14,7 +14,7 @@ LangSmith 트레이싱은 LANGSMITH_TRACING=true일 때 그래프 전체가 자�
 """
 import json
 import os
-from typing import List, Optional, TypedDict
+from typing import List, TypedDict
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate

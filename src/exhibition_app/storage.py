@@ -122,7 +122,12 @@ class SheetStorage:
     def load_photo(self, photo_id):
         got = self.cache.setdefault("photos", {})
         if photo_id not in got:
-            got[photo_id] = self.client.download_photo(photo_id)
+            try:
+                got[photo_id] = self.client.download_photo(photo_id)
+            except google_drive.AuthExpired:
+                raise  # 다시 로그인하면 받을 수 있으니 기억하지 않는다
+            except google_drive.GoogleError:
+                got[photo_id] = None  # 드라이브에서 지워진 사진 등: 이 세션 동안 다시 받으려 하지 않는다
         return got[photo_id]
 
     def delete_photo(self, photo_id):

@@ -239,3 +239,21 @@ def test_deleting_record_removes_its_photo_files(my_page):
     at.button(key="del-1").click().run()
     assert not at.exception
     assert st_.load_photo(pid) is None
+
+
+def test_sheet_storage_remembers_missing_photo_but_not_expired_login():
+    class Missing(FakeClient):
+        def download_photo(self, fid):
+            self.downloads += 1
+            if fid == "gone":
+                raise google_drive.GoogleError(messages.PHOTO_LOAD_FAILED)
+            raise google_drive.AuthExpired(messages.GOOGLE_LOGIN_EXPIRED)
+
+    client, cache = Missing(), {}
+    st_ = storage.SheetStorage(client, cache)
+    assert st_.load_photo("gone") is None and st_.load_photo("gone") is None
+    assert client.downloads == 1  # 지워진 사진은 한 번만 시도
+    for _ in range(2):
+        with pytest.raises(google_drive.AuthExpired):
+            st_.load_photo("expired")
+    assert client.downloads == 3  # 로그인 만료는 기억하지 않는다
