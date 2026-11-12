@@ -125,3 +125,31 @@ def test_logo_button_goes_home_from_any_page(env):
     at.radio(key="page").set_value(messages.PAGE_MY).run()
     at.sidebar.button(key="home").click().run()
     assert at.radio(key="page").value == messages.PAGE_FIND
+
+
+def _entrypoint_helpers():
+    """맨 위 app.py에서 마지막 실행 줄(runpy.run_path)만 빼고 함수들을 불러온다."""
+    src = (ROOT / "app.py").read_text(encoding="utf-8")
+    body = src[: src.rindex("_forget_stale_modules()\nrunpy.run_path")]
+    ns = {"__file__": str(ROOT / "app.py")}
+    exec(compile(body, "app.py", "exec"), ns)
+    return ns
+
+
+def test_entrypoint_drops_stale_project_modules_when_source_changes(monkeypatch):
+    import sys
+    from exhibition_app import messages as old
+    ns = _entrypoint_helpers()
+    saved = dict(sys.modules)  # 다른 테스트에 영향이 없도록 끝나면 되돌린다
+    monkeypatch.setattr(sys, "_exhibition_src_stamp", (0, 0), raising=False)  # 예전 코드로 돌던 상태
+    try:
+        ns["_forget_stale_modules"]()
+        assert "exhibition_app.messages" not in sys.modules
+        import exhibition_app.messages as new  # 새로 불러온다
+        assert new is not old
+        keep = sys.modules["exhibition_app.messages"]
+        ns["_forget_stale_modules"]()  # 코드가 그대로면 버리지 않는다
+        assert sys.modules["exhibition_app.messages"] is keep
+    finally:
+        sys.modules.clear()
+        sys.modules.update(saved)
