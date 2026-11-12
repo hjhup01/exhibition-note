@@ -5,10 +5,11 @@ from datetime import timedelta
 import streamlit as st
 from dotenv import load_dotenv
 
-from exhibition_app import (config, culture_api, filters, google_drive, messages, repository, search_api,
+from exhibition_app import (config, culture_api, filters, google_drive, messages, native_auth, repository, search_api,
                             storage, summarizer)
 
 _STORE = None  # 이번 실행의 저장소(LocalStorage 또는 SheetStorage). main()이 정한다.
+NATIVE = "native"  # 구글 설정 대신 쓰는 표시: Streamlit 내장 로그인(st.login, 같은 창)을 쓴다
 
 
 def _load_exhibitions():
@@ -46,7 +47,7 @@ def _flash(result, ok_text=None):
         try:
             _STORE.after_write()
         except google_drive.AuthExpired as e:
-            st.session_state.pop("google", None)
+            _forget_login()
             message = str(e)
         except google_drive.GoogleError as e:
             message = str(e)
@@ -76,25 +77,50 @@ def _handle_google_redirect(settings):
     st.rerun()
 
 
+def _current_login(settings):
+    """지금 쓸 구글 로그인({'access_token','email'}) 또는 None."""
+    if settings == NATIVE:
+        login = native_auth.current_login()
+        # 만료된 토큰이 쿠키에 남아 있으면 로그인 안 된 것으로 보고 다시 로그인하게 한다
+        if login and login["access_token"] == st.session_state.get("expired_token"):
+            return None
+        return login
+    return st.session_state.get("google")
+
+
+def _forget_login():
+    """토큰이 만료·취소되었을 때: 세션 로그인과 시트 캐시를 지운다(내장 로그인은 그 토큰을 만료로 표시)."""
+    login = st.session_state.pop("google", None) or native_auth.current_login()
+    if login:
+        st.session_state["expired_token"] = login["access_token"]
+    st.session_state.pop("sheet_cache", None)
+
+
 def _open_storage():
     """(저장소 또는 None, 안내 문구 또는 None, 구글 설정 또는 None).
-    구글 설정(GOOGLE_CLIENT_ID·SECRET)이 없으면 이 PC의 SQLite, 있으면 로그인한 사용자의 구글 시트."""
-    settings = google_drive.oauth_settings()
+    secrets의 [auth]가 있으면 내장 로그인(같은 창), 구글 설정(GOOGLE_CLIENT_ID·SECRET)이 있으면 기존 로그인,
+    둘 다 없으면 이 PC의 SQLite."""
+    settings = NATIVE if native_auth.enabled() else google_drive.oauth_settings()
     if settings is None:
         store = storage.LocalStorage()
         ok = repository.init_db(store.prepare()).ok
         return (store, None, None) if ok else (None, messages.STORE_UNAVAILABLE, None)
-    _handle_google_redirect(settings)
-    login = st.session_state.get("google")
+    if settings != NATIVE:
+        _handle_google_redirect(settings)
+    login = _current_login(settings)
     if not login:
         return None, messages.GOOGLE_LOGIN_NEEDED, settings
-    store = storage.SheetStorage(google_drive.SheetClient(login["access_token"]),
-                                 st.session_state.setdefault("sheet_cache", {}))
+    cache = st.session_state.setdefault("sheet_cache", {})
+    if cache.get("owner") != login.get("email"):  # 다른 계정으로 바뀌었으면 이전 사람 기록을 버린다
+        storage.SheetStorage(None, cache).reset()
+        cache.clear()
+        cache["owner"] = login.get("email")
+    store = storage.SheetStorage(google_drive.SheetClient(login["access_token"]), cache)
     try:
         store.prepare()
         return store, None, settings
     except google_drive.AuthExpired as e:
-        st.session_state.pop("google", None)
+        _forget_login()
         return None, str(e), settings
     except google_drive.GoogleError as e:
         return None, str(e), settings
@@ -102,13 +128,22 @@ def _open_storage():
 
 def _render_google_account(settings):
     """사이드바: 로그인 상태와 로그인·로그아웃 버튼."""
-    login = st.session_state.get("google")
+    login = _current_login(settings)
     if login:
         st.sidebar.caption(messages.GOOGLE_LOGGED_IN_AS.format(email=login.get("email") or "구글 계정"))
         if st.sidebar.button(messages.GOOGLE_LOGOUT_BUTTON, key="google-logout"):
             st.session_state.pop("google", None)
             st.session_state.pop("sheet_cache", None)
+            if settings == NATIVE:
+                native_auth.logout()
             st.rerun()
+    elif settings == NATIVE:
+        if google_drive.is_in_app_browser(_request_headers().get("user-agent")):
+            st.sidebar.warning(messages.GOOGLE_IN_APP_BROWSER)
+        if st.sidebar.button(messages.GOOGLE_LOGIN_BUTTON, key="google-login", type="primary", icon="🔑",
+                             use_container_width=True):
+            native_auth.login()
+        st.sidebar.caption(messages.GOOGLE_LOGIN_HINT_SAME_WINDOW)
     else:
         cid, secret, redirect = settings
         headers = _request_headers()

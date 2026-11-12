@@ -18,3 +18,10 @@ def _no_real_detail_api(monkeypatch):
     """전시 상세(요금·주소) 조회는 실제 API를 부르지 않게 한다. 상세를 시험하는 테스트는 직접 바꿔 넣는다."""
     from exhibition_app import culture_api
     monkeypatch.setattr(culture_api, "fetch_detail", lambda *a, **k: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_native_login_from_secrets(monkeypatch):
+    """실제 .streamlit/secrets.toml의 [auth](내장 로그인) 설정이 테스트에 섞이지 않게 한다."""
+    from exhibition_app import native_auth
+    monkeypatch.setattr(native_auth, "enabled", lambda: False)

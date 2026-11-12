@@ -342,3 +342,51 @@ def test_redirect_access_denied_explains_cause(google_env):
 def test_login_button_has_hint(google_env):
     at = AppTest.from_file(APP, default_timeout=30).run()
     assert messages.GOOGLE_LOGIN_HINT in [c.value for c in at.sidebar.caption]
+
+
+# ---------- 내장 로그인(st.login, 같은 창) ----------
+
+@pytest.fixture
+def native_env(google_env, monkeypatch):
+    from exhibition_app import native_auth
+    state = {"login": None, "calls": []}
+    monkeypatch.setattr(native_auth, "enabled", lambda: True)
+    monkeypatch.setattr(native_auth, "current_login", lambda: state["login"])
+    monkeypatch.setattr(native_auth, "login", lambda: state["calls"].append("login"))
+    monkeypatch.setattr(native_auth, "logout", lambda: state["calls"].append("logout"))
+    return state, google_env[0]
+
+
+def test_native_login_button_stays_in_same_window(native_env):
+    state, _ = native_env
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert not at.exception
+    assert not at.sidebar.get("link_button")  # 새 창을 여는 링크 버튼이 아니다
+    assert messages.GOOGLE_LOGIN_HINT_SAME_WINDOW in [c.value for c in at.sidebar.caption]
+    at.sidebar.button(key="google-login").click().run()
+    assert state["calls"] == ["login"]
+
+
+def test_native_logged_in_saves_to_sheet_and_logs_out(native_env):
+    state, shared = native_env
+    state["login"] = {"access_token": "AT", "email": "me@gmail.com"}
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert "로그인: me@gmail.com" in [c.value for c in at.sidebar.caption]
+    at.button(key="pick-1").click().run()
+    at.button(key="save-1").click().run()
+    assert not at.exception and [r["status"] for r in shared.rows] == ["관심"]
+    at.sidebar.button(key="google-logout").click().run()
+    assert "logout" in state["calls"]
+
+
+def test_native_expired_token_asks_to_login_again(native_env):
+    state, shared = native_env
+    state["login"] = {"access_token": "OLD", "email": "me@gmail.com"}
+
+    def expired():
+        raise google_drive.AuthExpired(messages.GOOGLE_LOGIN_EXPIRED)
+    shared.find_or_create = expired
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert not at.exception and messages.GOOGLE_LOGIN_EXPIRED in texts(at)
+    at.run()  # 같은 만료 토큰이 쿠키에 남아 있어도 로그인 버튼을 다시 보여 준다
+    assert at.sidebar.button(key="google-login")
