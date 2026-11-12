@@ -173,3 +173,11 @@ def test_poster_url_uses_https_and_rejects_bad_values():
     item = {"seq": "9", "title": "t", "realmName": "전시", "area": "서울", "place": "p",
             "startDate": "20261001", "endDate": "20261231", "thumbnail": "http://www.culture.go.kr/x.jpg"}
     assert culture_api.normalize_item(item).thumbnail == "https://www.culture.go.kr/x.jpg"
+
+
+def test_root_entrypoint_runs_src_app(app_env):
+    """저장소 맨 위 app.py(Streamlit Cloud 진입점)로 실행해도 앱이 그대로 뜬다."""
+    root_app = str(Path(APP).resolve().parent.parent / "app.py")
+    at = AppTest.from_file(root_app, default_timeout=30).run()
+    assert not at.exception
+    assert at.sidebar.radio[0].value == messages.PAGE_FIND

@@ -50,6 +50,7 @@ curl -X POST localhost:8000/query -H "Content-Type: application/json" \
 
 # 2) 화면 (Streamlit)
 ./run.sh app                # = streamlit run src/app.py  → http://localhost:8501
+# Streamlit Cloud 배포: Main file path = app.py (맨 위 app.py가 src/app.py를 실행한다)
 
 # 3) 평가
 ./run.sh eval 1             # 인-아웃 세트 자체 평가 → evaluation/round1_report.md
