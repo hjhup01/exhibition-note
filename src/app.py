@@ -212,23 +212,23 @@ _PAGE_CSS = f"""
 .st-key-all-tab h5 {{ color: {STATUS_HEADING_COLOR} !important; padding-top: 1.8rem !important; }}
 /* 목록 칸·상세 칸 위의 제목 */
 .pane-title {{ font-size: 1.2rem; font-weight: 700; color: {STATUS_HEADING_COLOR}; text-align: center;
-               padding: 0.1rem 0 0.35rem 0.1rem; font-family: "Noto Serif KR", serif; letter-spacing: 0.02em; }}
+               padding: 0.1rem 0 0.35rem 0.1rem; }}
 div[class*="st-key-save-"] button {{
     background-color: {SAVE_BUTTON_COLOR} !important; border-color: {SAVE_BUTTON_COLOR} !important;
     color: {SAVE_BUTTON_TEXT} !important; font-weight: 600;
 }}
 div[class*="st-key-save-"] button p {{ color: {SAVE_BUTTON_TEXT} !important; }}
 /* 금색 기본(primary) 버튼 위 글자는 어둡게 */
-button[kind="primary"], button[kind="primary"] p {{ color: {SAVE_BUTTON_TEXT} !important; font-weight: 600; }}
-/* 목록 카드: 제목 버튼은 글자처럼 보이게(왼쪽 정렬·명조), 고른 카드는 금색 테두리 */
+button[kind="primary"], button[kind="primary"] p {{ color: {SAVE_BUTTON_TEXT} !important; }}
+/* 목록 카드: 제목 버튼은 글자처럼 보이게(왼쪽 정렬, 글꼴·크기는 원래대로), 고른 카드는 금색 테두리 */
 .st-key-list-pane div[class*="st-key-card-"] {{ border: 1px solid {CARD_LINE}; border-radius: 10px;
     padding: 10px 12px; background: #1f2026; }}
 .st-key-list-pane div[class*="st-key-card-sel-"] {{ border: 2px solid {SAVE_BUTTON_COLOR}; }}
 .st-key-list-pane div[class*="st-key-pick-"] button {{ background: transparent !important; border: 0 !important;
     padding: 0 !important; min-height: 0 !important; justify-content: flex-start !important;
     text-align: left !important; }}
-.st-key-list-pane div[class*="st-key-pick-"] button p {{ font-family: "Noto Serif KR", serif !important;
-    font-weight: 700 !important; text-align: left !important; line-height: 1.4 !important; }}
+.st-key-list-pane div[class*="st-key-pick-"] button p {{
+    text-align: left !important; line-height: 1.4 !important; }}
 .st-key-list-pane div[class*="st-key-pick-"] button:hover p {{ color: {SAVE_BUTTON_COLOR} !important; }}
 .st-key-list-pane img, .st-key-detail-pane img {{ border-radius: 6px; }}
 .thumb-empty {{ width: {THUMB_WIDTH}px; height: 86px; border-radius: 6px;
@@ -237,7 +237,7 @@ button[kind="primary"], button[kind="primary"] p {{ color: {SAVE_BUTTON_TEXT} !i
     font-weight: 500; }}
 .info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px 0; }}
 .info-grid div {{ background: {INFO_BG}; border: 1px solid {CARD_LINE}; border-radius: 8px; padding: 8px 10px;
-    font-size: 0.88rem; line-height: 1.45; }}
+    font-size: {DETAIL_TEXT_SIZE}; line-height: 1.45; }}
 .info-grid div.wide {{ grid-column: 1 / -1; }}
 .info-grid b {{ display: block; color: {MUTED_TEXT}; font-weight: 500; font-size: 0.76rem; margin-bottom: 2px; }}
 .tagline {{ color: {MUTED_TEXT}; font-size: 0.85rem; margin: -0.4rem 0 0.4rem 0; }}
