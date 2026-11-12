@@ -1,6 +1,6 @@
 """사용자 대면 한국어 문구 상수. 화면은 이 상수만 출력한다."""
 
-APP_TITLE = "미술 전시"
+APP_TITLE = "나의 전시 관람"
 PAGE_FIND = "전시 찾기"
 PAGE_MY = "내 전시"
 PAGE_ASSISTANT = "AI 도우미"
