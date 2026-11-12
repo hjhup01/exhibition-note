@@ -10,7 +10,7 @@ from exhibition_app import config, culture_api, messages, repository
 from exhibition_app.culture_api import Exhibition
 
 TODAY = date(2026, 11, 11)
-APP = str(Path(__file__).resolve().parent.parent / "app.py")
+APP = str(Path(__file__).resolve().parent.parent / "src" / "app.py")
 
 
 def make(i, title, place="미술관"):

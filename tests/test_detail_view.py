@@ -7,7 +7,7 @@ from streamlit.testing.v1 import AppTest
 
 from exhibition_app import config, culture_api, messages, search_api, summarizer
 
-APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
+APP = str(pathlib.Path(__file__).resolve().parent.parent / "src" / "app.py")
 TODAY = datetime.date(2026, 11, 11)
 ITEM = {"seq": "1", "title": "빛의 전시", "realmName": "전시", "area": "서울", "place": "시립미술관",
         "startDate": "20261001", "endDate": "20261231"}

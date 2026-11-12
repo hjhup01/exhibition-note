@@ -12,7 +12,7 @@ from exhibition_app.culture_api import Exhibition
 TODAY = date(2026, 11, 11)
 NOW = datetime(2026, 11, 11, 10, 0, 0)
 LATER = datetime(2027, 1, 1, 9, 0, 0)
-APP = str(Path(__file__).resolve().parent.parent / "app.py")
+APP = str(Path(__file__).resolve().parent.parent / "src" / "app.py")
 
 
 def ex(i="1"):

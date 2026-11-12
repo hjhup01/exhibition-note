@@ -8,7 +8,7 @@ from streamlit.testing.v1 import AppTest
 
 from exhibition_app import config, culture_api
 
-APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
+APP = str(pathlib.Path(__file__).resolve().parent.parent / "src" / "app.py")
 TODAY = datetime.date(2026, 11, 11)
 
 

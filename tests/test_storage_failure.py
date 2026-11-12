@@ -9,7 +9,7 @@ from exhibition_app import config, culture_api, messages, repository
 from exhibition_app.culture_api import Exhibition
 
 TODAY = date(2026, 11, 11)
-APP = Path(__file__).resolve().parent.parent / "app.py"
+APP = Path(__file__).resolve().parent.parent / "src" / "app.py"
 MSG = "기록 저장소를 열 수 없습니다. DB_PATH를 확인해 주세요."
 
 
@@ -52,7 +52,7 @@ def test_ac11_repository_reports_message(broken_db):
 def test_ac11_find_page_shows_message_and_disables_save(broken_db):
     at = run()
     assert MSG in texts(at)
-    assert at.sidebar.radio[0].options == [messages.PAGE_FIND, messages.PAGE_MY]
+    assert at.sidebar.radio[0].options == [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT]
     assert "내 전시" in [at.sidebar.radio[0].format_func(o) for o in at.sidebar.radio[0].options]
     at.button(key="pick-1").click().run()
     assert not at.exception

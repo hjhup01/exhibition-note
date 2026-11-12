@@ -1,4 +1,5 @@
 """기본 집합(종료되지 않은 전시)과 기간·지역·키워드 필터. 모두 AND."""
+import re
 from datetime import date
 
 from .messages import PERIOD_ALL, PERIOD_ONGOING, PERIOD_UPCOMING, REGION_ALL
@@ -28,6 +29,23 @@ def normalize_keyword(keyword) -> str:
     return (keyword or "").strip()[:KEYWORD_MAX_LENGTH].strip().casefold()
 
 
+def _compact(text):
+    """문장부호·공백을 뺀 소문자 문자열(예: '패트릭 블랑: 수직정원' → '패트릭블랑수직정원')."""
+    return re.sub(r"[^0-9a-z가-힣]", "", (text or "").casefold())
+
+
+def keyword_matches(kw, title) -> bool:
+    """정규화된 키워드가 제목에 그대로 있거나, 문장부호를 무시했을 때 키워드의 낱말이 모두 제목에 있으면 True.
+    예: '패트릭 블랑 수직정원'은 '패트릭 블랑: 수직정원'과 일치한다."""
+    if not kw:
+        return True
+    if kw in (title or "").casefold():
+        return True
+    t = _compact(title)
+    words = [_compact(w) for w in kw.split()]
+    return any(words) and all(w in t for w in words if w)
+
+
 def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, keyword="",
                        art_only=False) -> list:
     t = today.isoformat()
@@ -42,7 +60,7 @@ def filter_exhibitions(base, today: date, period=PERIOD_ALL, region=REGION_ALL, 
             continue
         if region != REGION_ALL and e.region != region:
             continue
-        if kw and kw not in e.title.casefold():
+        if kw and not keyword_matches(kw, e.title):
             continue
         out.append(e)
     return out

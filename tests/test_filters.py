@@ -73,3 +73,11 @@ def test_ac2_keyword_max_length_constant_is_50_and_used():
     n = KEYWORD_MAX_LENGTH
     rows = [ex(1, title="가" * n)]
     assert ids(filter_exhibitions(rows, TODAY, keyword="가" * n + "다" * 10)) == ["1"]
+
+
+def test_keyword_ignores_punctuation_and_matches_all_words():
+    from exhibition_app.filters import keyword_matches
+    assert keyword_matches("패트릭 블랑 수직정원", "패트릭 블랑: 수직정원")
+    assert keyword_matches("수직정원", "패트릭 블랑: 수직정원")
+    assert not keyword_matches("패트릭 정원사", "패트릭 블랑: 수직정원")
+    assert keyword_matches("", "아무 제목")

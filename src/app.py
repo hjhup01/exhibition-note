@@ -317,6 +317,35 @@ def _render_my(db_path, today):
                         _flash(repository.delete(db_path, r["exhibition_id"]), messages.RECORD_DELETED_DONE)
 
 
+def _render_assistant():
+    """AI 도우미: 질문 → 에이전트(src/agent.py) → 답변 + 근거 문서 + 처리 과정."""
+    st.caption(messages.ASSISTANT_INTRO)
+    history = st.session_state.setdefault("chat", [])
+    for turn in history:
+        with st.chat_message(turn["role"]):
+            st.markdown(turn["text"])
+            if turn.get("contexts"):
+                with st.expander(f"{messages.ASSISTANT_SOURCES} ({len(turn['contexts'])})"):
+                    for c in turn["contexts"]:
+                        st.caption(f"{c['doc_id']}")
+                        st.text(c["text"][:400])
+            if turn.get("trace"):
+                with st.expander(messages.ASSISTANT_TRACE):
+                    st.json(turn["trace"], expanded=False)
+    question = st.chat_input(messages.ASSISTANT_PLACEHOLDER, key="assistant-input")
+    if question:
+        import agent  # 무거운 의존성(LangGraph)은 이 화면에서만 불러온다
+        history.append({"role": "user", "text": question})
+        with st.spinner("답변을 만드는 중…"):
+            try:
+                r = agent.run(question)
+                history.append({"role": "assistant", "text": r["answer"], "contexts": r["contexts"],
+                                "trace": r["trace"]})
+            except Exception:
+                history.append({"role": "assistant", "text": agent.FALLBACK_ANSWER})
+        st.rerun()
+
+
 def main():
     load_dotenv()
     config.install_secret_redaction()
@@ -336,9 +365,12 @@ def main():
     st.sidebar.title(messages.APP_TITLE)
     if gsettings:
         _render_google_account(gsettings)
-    page = st.sidebar.radio("페이지", [messages.PAGE_FIND, messages.PAGE_MY],
+    page = st.sidebar.radio("페이지", [messages.PAGE_FIND, messages.PAGE_MY, messages.PAGE_ASSISTANT],
                             format_func=lambda p: my_label if p == messages.PAGE_MY else p,
                             label_visibility="collapsed", key="page")
+    if page == messages.PAGE_ASSISTANT:
+        _render_assistant()
+        return
     if page != messages.PAGE_FIND:
         if db_ok:
             _render_my(db_path, today)

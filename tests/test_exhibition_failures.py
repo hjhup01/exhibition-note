@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 
 from exhibition_app import config, messages
 
-APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
+APP = str(pathlib.Path(__file__).resolve().parent.parent / "src" / "app.py")
 TODAY = datetime.date(2026, 11, 11)
 FAILED = "전시 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
 

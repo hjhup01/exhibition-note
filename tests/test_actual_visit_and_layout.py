@@ -10,7 +10,7 @@ from exhibition_app import config, culture_api, messages, repository, search_api
 from exhibition_app.culture_api import Exhibition
 
 TODAY = date(2026, 11, 11)
-APP = str(Path(__file__).resolve().parent.parent / "app.py")
+APP = str(Path(__file__).resolve().parent.parent / "src" / "app.py")
 APP_SRC = Path(APP).read_text(encoding="utf-8")
 EX = Exhibition("1", "빛의 층위", "전시", "서울", "한강아트센터", "2026-10-02", "2027-01-18")
 

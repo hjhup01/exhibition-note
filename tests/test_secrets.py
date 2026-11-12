@@ -12,7 +12,7 @@ from streamlit.testing.v1 import AppTest
 
 from exhibition_app import config, messages
 
-APP = str(pathlib.Path(__file__).resolve().parent.parent / "app.py")
+APP = str(pathlib.Path(__file__).resolve().parent.parent / "src" / "app.py")
 TODAY = datetime.date(2026, 11, 11)
 SECRETS = {
     "CULTURE_API_KEY": "SENTINEL-CULTURE-9f3a1",

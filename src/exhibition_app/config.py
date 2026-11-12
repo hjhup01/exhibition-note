@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-DEFAULT_BEDROCK_MODEL_ID = "apac.anthropic.claude-3-5-sonnet-20241022-v2:0"
+DEFAULT_BEDROCK_MODEL_ID = "global.anthropic.claude-haiku-4-5-20251001-v1:0"  # us-east-1에서 확인한 모델
 DEFAULT_DB_PATH = "./data/exhibitions.db"
 CULTURE_PAGE_SIZE = 100
 TIMEOUT_SECONDS = 10

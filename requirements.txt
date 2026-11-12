@@ -4,3 +4,7 @@ python-dotenv
 langchain-aws
 langsmith
 pytest
+langgraph>=1.0
+fastapi
+uvicorn
+httpx

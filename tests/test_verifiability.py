@@ -42,7 +42,7 @@ def test_ac13_each_ac_1_to_11_has_a_test_function():
 
 
 def test_ac13_app_py_only_calls_package_modules():
-    tree = ast.parse((ROOT / "app.py").read_text(encoding="utf-8"))
+    tree = ast.parse((ROOT / "src" / "app.py").read_text(encoding="utf-8"))
     imported = set()
     for n in ast.walk(tree):
         if isinstance(n, ast.Import):
