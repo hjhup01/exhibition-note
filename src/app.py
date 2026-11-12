@@ -237,7 +237,13 @@ _PAGE_CSS = f"""
 /* 내 전시: 카드의 전시 제목은 본문의 120% */
 .st-key-all-tab h3, div[class*="st-key-status-tab-"] h3 {{ font-size: {MY_CARD_TITLE_SIZE} !important; }}
 /* 전체 탭: [관심]/[관람예정]/[관람완료] 묶음 제목은 금색, 묶음 사이 간격을 넓힌다 */
-.st-key-all-tab h5 {{ color: {STATUS_HEADING_COLOR} !important; padding-top: 1.8rem !important; }}
+.st-key-all-tab div[class*="st-key-goto-"] {{ padding-top: 1.8rem; }}
+.st-key-all-tab div[class*="st-key-goto-"] button {{ background: transparent !important; border: 0 !important;
+    padding: 0 !important; min-height: 0 !important; }}
+.st-key-all-tab div[class*="st-key-goto-"] button p {{ color: {STATUS_HEADING_COLOR} !important;
+    font-size: 1.25rem !important; font-weight: 600 !important; }}
+.st-key-all-tab div[class*="st-key-goto-"] button:hover p {{ color: {SAVE_BUTTON_HOVER} !important;
+    text-decoration: underline; }}
 /* 목록 칸·상세 칸 위의 제목 */
 .pane-title {{ font-size: 1.2rem; font-weight: 700; color: {STATUS_HEADING_COLOR}; text-align: center;
                padding: 0.1rem 0 0.35rem 0.1rem; }}
@@ -554,16 +560,26 @@ def _date_line(r):
     return " · ".join(p for p in parts if p)
 
 
+MY_TABS_KEY = "my-tab"  # 내 전시 탭의 선택(전체/관심/관람예정/관람완료). 값을 바꾸면 그 탭이 열린다.
+
+
+def _open_status_tab(status):
+    """전체 탭의 묶음 제목을 누르면 그 상태의 탭으로 넘어간다."""
+    st.session_state[MY_TABS_KEY] = messages.TAB_LABELS[repository.STATUSES.index(status)]
+
+
 def _render_all(db_path):
     """전체 탭: [관심] → [관람예정] → [관람완료] 제목 아래에 상태별 목록을 모아 본다.
-    조작 버튼은 두지 않는다(같은 전시의 위젯이 상태 탭과 겹쳐 두 번 생기지 않도록)."""
+    묶음 제목을 누르면 그 상태의 탭으로 넘어간다(전시별 조작 버튼은 두지 않는다:
+    같은 전시의 위젯이 상태 탭과 겹쳐 두 번 생기지 않도록)."""
     if not repository.count(db_path):
         st.write(messages.EMPTY_TAB)
         return
     st.caption(messages.ALL_TAB_NOTE)
     for status in repository.STATUSES:
         rows = repository.list_by_status(db_path, status)
-        st.markdown(rf"##### \[{status}\] · {len(rows)}건")  # \[ \]: 대괄호를 글자 그대로 표시
+        st.button(messages.STATUS_GROUP_TITLE.format(status=status, count=len(rows)), key=f"goto-{status}",
+                  on_click=_open_status_tab, args=(status,), help=messages.STATUS_GROUP_HELP.format(status=status))
         if not rows:
             st.caption(messages.EMPTY_TAB)
         for r in rows:
@@ -585,7 +601,7 @@ def _render_all_card(r):
 def _render_my(db_path, today):
     if st.session_state.get("flash"):
         st.write(st.session_state.pop("flash"))
-    tabs = st.tabs([messages.TAB_ALL, *messages.TAB_LABELS])
+    tabs = st.tabs([messages.TAB_ALL, *messages.TAB_LABELS], key=MY_TABS_KEY, on_change="rerun")
     with tabs[0], st.container(key="all-tab"):
         _render_all(db_path)
     for i, (tab, status) in enumerate(zip(tabs[1:], repository.STATUSES, strict=True)):

@@ -138,12 +138,15 @@ def test_all_tab_first_lists_every_status_read_only(db, monkeypatch):
     assert [t.label for t in at.tabs] == ["전체", "관심", "관람예정", "관람완료"]
     all_tab = at.tabs[0]
     # 상태별 제목 아래에 목록: [관심] 빛의 층위 → [관람예정] 없음 → [관람완료] 돌과 숨
-    texts = [m.value for m in all_tab.markdown]
-    heads = [t for t in texts if t.startswith("##### ")]
-    assert heads == [r"##### \[관심\] · 1건", r"##### \[관람예정\] · 0건", r"##### \[관람완료\] · 1건"]
+    heads = [b.label for b in all_tab.button]  # 묶음 제목은 누르면 그 탭으로 가는 버튼
+    assert heads == ["[관심] · 1건  ›", "[관람예정] · 0건  ›", "[관람완료] · 1건  ›"]
     assert [s.value for s in all_tab.subheader] == ["빛의 층위", "돌과 숨"]
     captions = " ".join(c.value for c in all_tab.caption)
     assert "실제 관람일 2026-11-05" in captions and messages.EMPTY_TAB in captions
     assert "상태 관심" not in captions
     assert "★★★★☆" in [m.value for m in all_tab.markdown]
-    assert len(all_tab.button) == 0 and len(all_tab.date_input) == 0  # 모아 보기 전용
+    assert len(all_tab.button) == 3 and len(all_tab.date_input) == 0  # 묶음 제목 버튼만(모아 보기 전용)
+    # 본문의 [관람완료] 제목을 누르면 관람완료 탭이 열린다
+    all_tab.button(key="goto-관람완료").click().run()
+    assert not at.exception
+    assert at.session_state["my-tab"] == "관람완료"
