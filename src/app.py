@@ -246,9 +246,16 @@ _FILTER_KEYS = ("page", "period", "regions", "keyword", "art-only", "past-range"
 
 def _go_home():
     """처음 화면으로: 페이지·필터·선택을 기본값으로 되돌린다(로그인·대화 기록은 유지)."""
+    # 화면에 보이는 위젯은 키를 지우기만 하면 브라우저 쪽 값이 남을 수 있어, 기본값을 직접 넣는다.
+    widget_defaults = {"page": messages.PAGE_FIND, "period": DEFAULT_PERIOD, "regions": [DEFAULT_REGION],
+                       "keyword": "", "art-only": False}
     for k in list(st.session_state.keys()):
-        if k in _FILTER_KEYS or str(k).startswith("districts-"):
+        if str(k).startswith("districts-"):
+            st.session_state[k] = []
+        elif k in _FILTER_KEYS and k not in widget_defaults:
             del st.session_state[k]
+    for k, v in widget_defaults.items():
+        st.session_state[k] = v
 
 
 def _load_past(start, end):
@@ -503,8 +510,9 @@ def main():
             st.write(store_message)
         return
     period_options = [messages.PERIOD_ALL, messages.PERIOD_ONGOING, messages.PERIOD_UPCOMING, messages.PERIOD_PAST]
-    period = st.sidebar.selectbox(messages.FILTER_PERIOD_LABEL, period_options,
-                                  index=period_options.index(DEFAULT_PERIOD), key="period")
+    # 기본값은 세션 값으로만 정한다(처음 화면 버튼이 세션 값을 바꿀 때 경고가 나지 않게).
+    st.session_state.setdefault("period", DEFAULT_PERIOD)
+    period = st.sidebar.selectbox(messages.FILTER_PERIOD_LABEL, period_options, key="period")
     past_range, past_note = None, None
     if period == messages.PERIOD_PAST:
         rng = st.sidebar.date_input(messages.FILTER_PAST_RANGE_LABEL,
@@ -521,8 +529,10 @@ def main():
     region_options = [r for r in filters.region_options(base) if r != messages.REGION_ALL]
     if "regions" in st.session_state:  # 목록이 바뀌어 사라진 지역은 선택에서 뺀다
         st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
+    st.session_state.setdefault("regions", [DEFAULT_REGION])
+    # 목록에 없는 지역(예: 기본값 '서울'이 목록에 없을 때)은 뺀다
+    st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
     regions = st.sidebar.multiselect(messages.FILTER_REGION_LABEL, region_options,
-                                     default=[DEFAULT_REGION] if DEFAULT_REGION in region_options else [],
                                      placeholder=messages.FILTER_REGION_PLACEHOLDER, key="regions")
     districts = {}
     if DEFAULT_REGION in regions:

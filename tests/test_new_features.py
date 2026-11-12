@@ -151,3 +151,14 @@ def test_detail_without_info_shows_notice(app_env):
     at = AppTest.from_file(APP, default_timeout=30).run()
     at.button(key="pick-1").click().run()
     assert messages.DETAIL_NO_INFO in [c.value for c in at.main.caption]
+
+
+def test_home_button_sets_widget_values_without_warning(app_env):
+    """처음 화면 버튼은 위젯 값을 직접 기본값으로 넣어 브라우저의 라디오·필터도 바뀌게 하고, 경고는 없어야 한다."""
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.sidebar.radio[0].set_value(messages.PAGE_ASSISTANT).run()
+    at.sidebar.button(key="home").click().run()
+    assert not at.exception and not at.warning
+    assert at.session_state["page"] == messages.PAGE_FIND
+    assert at.sidebar.radio[0].value == messages.PAGE_FIND
+    assert at.sidebar.selectbox(key="period").value == "전시중"
