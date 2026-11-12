@@ -35,6 +35,7 @@ class Exhibition:
     start_date: str  # YYYY-MM-DD
     end_date: str
     district: str = ""  # 시·군·구(문화포털 sigungu). 예: 종로구
+    thumbnail: str = ""  # 포스터 이미지 주소(https). 없으면 빈 문자열
 
 
 def _required_text(value):
@@ -103,7 +104,15 @@ def normalize_item(item):
         return None
     return Exhibition(exhibition_id, title, EXHIBITION_CATEGORY,
                       normalize_region(item.get("area")), _optional_text(item.get("place")),
-                      start, end, _optional_text(item.get("sigungu")))
+                      start, end, _optional_text(item.get("sigungu")), poster_url(item.get("thumbnail")))
+
+
+def poster_url(value):
+    """포스터 이미지 주소. 배포 사이트(https)에서 막히지 않게 http를 https로 바꾼다. 이상한 값은 빈 문자열."""
+    url = _optional_text(value)
+    if url.startswith("http://"):
+        url = "https://" + url[len("http://"):]
+    return url if url.startswith("https://") else ""
 
 
 def _json_items(data):

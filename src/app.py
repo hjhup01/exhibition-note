@@ -170,11 +170,24 @@ DEFAULT_PERIOD = messages.PERIOD_ONGOING  # 처음 화면의 기간 필터
 DEFAULT_REGION = "서울"                    # 처음 화면의 지역 필터(목록에 서울이 없으면 '전체')
 PAST_DEFAULT_DAYS = 90                     # '지난 전시' 기본 기간: 어제까지 90일
 PANE_HEIGHT = 720  # 전시 찾기의 목록 칸·상세 칸 높이(px). 두 칸은 각자 따로 스크롤된다.
-SAVE_BUTTON_COLOR = "#1a73e8"
-SAVE_BUTTON_HOVER = "#1557b0"
+# 디자인 시안 C '다크 갤러리' (기본 색·글꼴은 .streamlit/config.toml의 [theme])
+SAVE_BUTTON_COLOR = "#c9a45c"   # 금색 포인트
+SAVE_BUTTON_HOVER = "#dcb96f"
+SAVE_BUTTON_TEXT = "#16171b"    # 금색 버튼 위 글자는 어두운 색(대비)
+ACCENT_TEXT = "#d8b46a"         # 칸 제목·상태 묶음 제목
+MUTED_TEXT = "#9a9890"
+CARD_LINE = "#2e2f36"
+INFO_BG = "#16171b"
+POSTER_WIDTH = 150              # 상세 칸 포스터 폭(px)
+THUMB_WIDTH = 64                # 목록 카드 썸네일 폭(px)
+CLOSING_SOON_DAYS = 7           # 끝나기 7일 전부터 '마감임박' 배지
+BADGE_COLORS = {  # 배지 (글자색, 배경색)
+    "전시중": ("#7fd19b", "#1f3a2a"), "전시예정": ("#8fb4ff", "#1f2a44"),
+    "종료": ("#9a9890", "#2a2b31"), "마감": ("#f0b35a", "#3d2f17"),
+}
 
 MY_CARD_TITLE_SIZE = "1.2rem"  # 내 전시 카드 제목: 본문 글자(1rem)의 120%
-STATUS_HEADING_COLOR = SAVE_BUTTON_COLOR      # 전체 탭 상태 묶음 제목 색(파란색)
+STATUS_HEADING_COLOR = ACCENT_TEXT           # 전체 탭 상태 묶음 제목 색(금색)
 PANE_FONT_SIZE = "1rem"  # 목록 칸(두 번째) 글자 크기. 상세 칸(세 번째)의 장소 글자도 이 크기다
 DETAIL_TITLE_SIZE = f"calc({PANE_FONT_SIZE} + 1pt)"  # 상세 칸 전시 제목: 1pt 크게
 DETAIL_TEXT_SIZE = f"calc({PANE_FONT_SIZE} - 1pt)"   # 상세 칸의 제목·장소를 뺀 나머지: 1pt 작게
@@ -195,15 +208,39 @@ _PAGE_CSS = f"""
 .st-key-detail-pane h2 a, .st-key-detail-pane h3 a {{ display: none !important; }}
 /* 내 전시: 카드의 전시 제목은 본문의 120% */
 .st-key-all-tab h3, div[class*="st-key-status-tab-"] h3 {{ font-size: {MY_CARD_TITLE_SIZE} !important; }}
-/* 전체 탭: [관심]/[관람예정]/[관람완료] 묶음 제목은 파란색, 묶음 사이 간격을 넓힌다 */
+/* 전체 탭: [관심]/[관람예정]/[관람완료] 묶음 제목은 금색, 묶음 사이 간격을 넓힌다 */
 .st-key-all-tab h5 {{ color: {STATUS_HEADING_COLOR} !important; padding-top: 1.8rem !important; }}
 /* 목록 칸·상세 칸 위의 제목 */
 .pane-title {{ font-size: 1.2rem; font-weight: 700; color: {STATUS_HEADING_COLOR}; text-align: center;
-               padding: 0.1rem 0 0.35rem 0.1rem; }}
+               padding: 0.1rem 0 0.35rem 0.1rem; font-family: "Noto Serif KR", serif; letter-spacing: 0.02em; }}
 div[class*="st-key-save-"] button {{
     background-color: {SAVE_BUTTON_COLOR} !important; border-color: {SAVE_BUTTON_COLOR} !important;
-    color: #ffffff !important; font-weight: 600;
+    color: {SAVE_BUTTON_TEXT} !important; font-weight: 600;
 }}
+div[class*="st-key-save-"] button p {{ color: {SAVE_BUTTON_TEXT} !important; }}
+/* 금색 기본(primary) 버튼 위 글자는 어둡게 */
+button[kind="primary"], button[kind="primary"] p {{ color: {SAVE_BUTTON_TEXT} !important; font-weight: 600; }}
+/* 목록 카드: 제목 버튼은 글자처럼 보이게(왼쪽 정렬·명조), 고른 카드는 금색 테두리 */
+.st-key-list-pane div[class*="st-key-card-"] {{ border: 1px solid {CARD_LINE}; border-radius: 10px;
+    padding: 10px 12px; background: #1f2026; }}
+.st-key-list-pane div[class*="st-key-card-sel-"] {{ border: 2px solid {SAVE_BUTTON_COLOR}; }}
+.st-key-list-pane div[class*="st-key-pick-"] button {{ background: transparent !important; border: 0 !important;
+    padding: 0 !important; min-height: 0 !important; justify-content: flex-start !important;
+    text-align: left !important; }}
+.st-key-list-pane div[class*="st-key-pick-"] button p {{ font-family: "Noto Serif KR", serif !important;
+    font-weight: 700 !important; text-align: left !important; line-height: 1.4 !important; }}
+.st-key-list-pane div[class*="st-key-pick-"] button:hover p {{ color: {SAVE_BUTTON_COLOR} !important; }}
+.st-key-list-pane img, .st-key-detail-pane img {{ border-radius: 6px; }}
+.thumb-empty {{ width: {THUMB_WIDTH}px; height: 86px; border-radius: 6px;
+    background: linear-gradient(160deg, #2c2a22, #1f2026); }}
+.badge {{ display: inline-block; font-size: 0.74rem; border-radius: 999px; padding: 1px 9px; margin: 2px 4px 0 0;
+    font-weight: 500; }}
+.info-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px 0; }}
+.info-grid div {{ background: {INFO_BG}; border: 1px solid {CARD_LINE}; border-radius: 8px; padding: 8px 10px;
+    font-size: 0.88rem; line-height: 1.45; }}
+.info-grid div.wide {{ grid-column: 1 / -1; }}
+.info-grid b {{ display: block; color: {MUTED_TEXT}; font-weight: 500; font-size: 0.76rem; margin-bottom: 2px; }}
+.tagline {{ color: {MUTED_TEXT}; font-size: 0.85rem; margin: -0.4rem 0 0.4rem 0; }}
 div[class*="st-key-save-"] button:hover {{
     background-color: {SAVE_BUTTON_HOVER} !important; border-color: {SAVE_BUTTON_HOVER} !important;
 }}
@@ -258,6 +295,10 @@ def _go_home():
         st.session_state[k] = v
 
 
+def _pick(exhibition_id):
+    st.session_state["selected_id"] = exhibition_id
+
+
 def _load_past(start, end):
     """지난 전시(기간 조회 API). 같은 기간은 세션 동안 다시 부르지 않는다. (목록 또는 None, 잘림 여부)"""
     cache = st.session_state.setdefault("past_cache", {})
@@ -277,14 +318,34 @@ def _period_tag(e, today):
     return messages.PERIOD_ONGOING if e.start_date <= t else messages.PERIOD_UPCOMING
 
 
+def _badge(text, kind):
+    fg, bg = BADGE_COLORS[kind]
+    return f'<span class="badge" style="color:{fg};background:{bg}">{html.escape(text)}</span>'
+
+
+def badges_html(e, today):
+    """상태 배지(전시중/전시예정/종료)와, 끝나기 7일 안이면 'D-n 마감임박' 배지."""
+    tag = _period_tag(e, today)
+    out = _badge(tag, tag)
+    if tag == messages.PERIOD_ONGOING:
+        end = _parse_iso(e.end_date)
+        left = (end - today).days if end else None
+        if left is not None and 0 <= left <= CLOSING_SOON_DAYS:
+            out += _badge(messages.CLOSING_SOON.format(days=left), "마감")
+    return out
+
+
 def _render_detail_info(info):
-    """요금·주소·문의·안내 링크와 지도(좌표가 있을 때)."""
+    """요금·주소·문의(아이콘 칸), 안내 링크와 지도(좌표가 있을 때)."""
     if not info:
         st.caption(messages.DETAIL_NO_INFO)
         return
-    for label, value in ((messages.DETAIL_PRICE, info.get("price")), (messages.DETAIL_ADDRESS, info.get("address")),
-                         (messages.DETAIL_PHONE, info.get("phone"))):
-        st.write(f"**{label}** · {value or messages.DETAIL_INFO_MISSING}")
+    cells = [("💰 " + messages.DETAIL_PRICE, info.get("price"), ""),
+             ("☎ " + messages.DETAIL_PHONE, info.get("phone"), ""),
+             ("🏛 " + messages.DETAIL_ADDRESS, info.get("address"), "wide")]
+    st.markdown('<div class="info-grid">' + "".join(
+        f'<div class="{cls}"><b>{html.escape(label)}</b>{html.escape(value or messages.DETAIL_INFO_MISSING)}</div>'
+        for label, value, cls in cells) + "</div>", unsafe_allow_html=True)
     link = info.get("url") or info.get("place_url")
     if link:
         st.markdown(f"[{messages.DETAIL_LINK}]({link})")
@@ -491,7 +552,8 @@ def main():
     my_label = (messages.MY_LABEL_FORMAT.format(count=repository.count(db_path)) if db_ok
                 else messages.PAGE_MY)
 
-    st.sidebar.title(messages.APP_TITLE)
+    st.sidebar.title("🎨 " + messages.APP_TITLE)
+    st.sidebar.html(f'<div class="tagline">{html.escape(messages.APP_TAGLINE)}</div>')
     st.sidebar.button(messages.HOME_BUTTON, key="home", icon="🏠", on_click=_go_home, use_container_width=True)
     if gsettings:
         _render_google_account(gsettings)
@@ -527,8 +589,6 @@ def main():
         else:
             base, past_note = [], messages.PAST_RANGE_INCOMPLETE
     region_options = [r for r in filters.region_options(base) if r != messages.REGION_ALL]
-    if "regions" in st.session_state:  # 목록이 바뀌어 사라진 지역은 선택에서 뺀다
-        st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
     st.session_state.setdefault("regions", [DEFAULT_REGION])
     # 목록에 없는 지역(예: 기본값 '서울'이 목록에 없을 때)은 뺀다
     st.session_state["regions"] = [r for r in st.session_state["regions"] if r in region_options]
@@ -569,23 +629,37 @@ def main():
         elif not shown:
             st.write(messages.NO_RESULT)
         for e in shown:
-            label = ("▶ " if e is selected else "") + e.title
-            if st.button(label, key=f"pick-{e.exhibition_id}"):
-                st.session_state["selected_id"] = e.exhibition_id
-                selected = e
-            where = " ".join(x for x in (e.region, e.district) if x)
-            st.caption(" · ".join(x for x in (e.place, where, _period_text(e), _period_tag(e, today)) if x))
+            card_key = f"card-sel-{e.exhibition_id}" if e is selected else f"card-{e.exhibition_id}"
+            # 카드 = [썸네일 | 제목·장소·배지] 가로 배치(열(columns) 대신 가로 컨테이너: 칸 구조를 단순하게)
+            with st.container(key=card_key, horizontal=True, wrap=False, vertical_alignment="center", gap="medium"):
+                if e.thumbnail:
+                    st.image(e.thumbnail, width=THUMB_WIDTH)
+                else:
+                    st.html('<div class="thumb-empty"></div>', width=THUMB_WIDTH)
+                with st.container():
+                    # 고르기는 콜백으로: 다시 그리기 전에 선택이 정해져 고른 카드 테두리가 바로 바뀐다
+                    st.button(e.title, key=f"pick-{e.exhibition_id}", on_click=_pick, args=(e.exhibition_id,))
+                    where = " ".join(x for x in (e.region, e.district) if x)
+                    st.caption(" · ".join(x for x in (e.place, where, _period_text(e)) if x))
+                    st.html(badges_html(e, today))
     with right:
         if selected is None:
             st.write(messages.SELECT_EXHIBITION)
         else:
-            with st.container(key="detail-head"):  # 제목·장소: 글자 크기를 줄이지 않는 영역
-                st.header(selected.title)
-                st.write(selected.place)
-            st.write(_period_text(selected))
-            if st.button(messages.SAVE_INTEREST_BUTTON, key=f"save-{selected.exhibition_id}",
-                         type="primary", icon="⭐", disabled=not db_ok):
-                _flash(repository.save(db_path, selected), messages.SAVED_DONE)
+            # 포스터가 있으면 왼쪽에 크게, 제목·장소·배지·버튼은 오른쪽
+            hero = st.container(key="detail-hero", horizontal=True, wrap=False, gap="medium")
+            if selected.thumbnail:
+                hero.image(selected.thumbnail, width=POSTER_WIDTH)
+            with hero.container():
+                with st.container(key="detail-head"):  # 제목·장소: 글자 크기를 줄이지 않는 영역
+                    st.header(selected.title)
+                    if selected.place:
+                        st.write("📍 " + selected.place)
+                st.html(badges_html(selected, today))
+                st.write(_period_text(selected))
+                if st.button(messages.SAVE_INTEREST_BUTTON, key=f"save-{selected.exhibition_id}",
+                             type="primary", icon="⭐", disabled=not db_ok):
+                    _flash(repository.save(db_path, selected), messages.SAVED_DONE)
             data = _detail_data(selected)
             _render_detail_info(data.get("info"))
             if data["summary"]:

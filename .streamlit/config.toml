@@ -1,0 +1,16 @@
+# 디자인 시안 C '다크 갤러리': 어두운 전시실 + 금색 포인트
+[theme]
+base = "dark"
+primaryColor = "#c9a45c"
+backgroundColor = "#16171b"
+secondaryBackgroundColor = "#1f2026"
+textColor = "#ecebe6"
+linkColor = "#d8b46a"
+borderColor = "#2e2f36"
+baseRadius = "0.6rem"
+font = "'Noto Sans KR':https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap"
+headingFont = "'Noto Serif KR':https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700&display=swap"
+
+[theme.sidebar]
+backgroundColor = "#101114"
+secondaryBackgroundColor = "#1f2026"

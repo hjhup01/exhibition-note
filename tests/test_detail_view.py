@@ -52,11 +52,14 @@ def test_ac12_selected_shows_detail_in_order(monkeypatch, tmp_path):
     assert right.header[0].value == "빛의 전시"
     assert right.button[0].label == messages.SAVE_INTEREST_BUTTON
     values = [m.value for m in right.markdown]
-    assert values[:2] == ["시립미술관", "2026-10-01 ~ 2026-12-31"]
+    assert values[:2] == ["📍 시립미술관", "2026-10-01 ~ 2026-12-31"]
     assert [s.value for s in right.subheader] == [messages.WEB_HEADING, messages.BLOG_HEADING]
     # 상세 칸 내용은 따로 스크롤되는 고정 높이 컨테이너 하나 안에 들어 있다
     panes = [c for c in right.children.values() if type(c).__name__ != "Html"]
     assert len(panes) == 1
     kinds = [type(c).__name__ for c in panes[0].children.values()]
-    assert kinds.index("Button") < kinds.index("Subheader")
+    # 맨 위 묶음(포스터·제목·저장 버튼) 다음에 관련 글 제목이 온다
+    hero = list(panes[0].children.values())[0]
+    assert hero.button[0].label == messages.SAVE_INTEREST_BUTTON
+    assert "Subheader" in kinds[1:]
     assert at.calls == ["빛의 전시"]

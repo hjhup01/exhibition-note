@@ -112,7 +112,7 @@ def test_past_exhibitions_with_date_range(app_env):
     at.sidebar.selectbox(key="period").set_value("지난 전시").run()
     assert not at.exception
     assert titles(at) == ["지난 종로 전시"]                      # 아직 끝나지 않은 전시는 빠진다
-    assert "종료" in " ".join(c.value for c in at.main.caption)
+    assert "종료" in " ".join(h.proto.body for h in at.main.get("html"))  # 상태 배지
     s, e = app_env[-1]
     assert (TODAY - s).days == 90 and (TODAY - e).days == 1
     at.sidebar.date_input(key="past-range").set_value((date(2026, 9, 1), date(2026, 9, 30))).run()
@@ -142,7 +142,8 @@ def test_detail_shows_price_address_link_and_map(app_env, monkeypatch):
     at.button(key="pick-1").click().run()
     assert not at.exception
     texts = [m.value for m in at.main.markdown]
-    assert "**요금** · 성인 5,000원" in texts and "**주소** · 서울특별시 종로구 삼청로 30" in texts
+    info = " ".join(texts)
+    assert "요금</b>성인 5,000원" in info and "주소</b>서울특별시 종로구 삼청로 30" in info
     assert "[전시 안내 페이지](https://x.kr/e)" in texts
     assert len(at.get("map")) == 1 or len(at.get("deck_gl_json_chart")) == 1
 
@@ -162,3 +163,13 @@ def test_home_button_sets_widget_values_without_warning(app_env):
     assert at.session_state["page"] == messages.PAGE_FIND
     assert at.sidebar.radio[0].value == messages.PAGE_FIND
     assert at.sidebar.selectbox(key="period").value == "전시중"
+
+
+def test_poster_url_uses_https_and_rejects_bad_values():
+    assert culture_api.poster_url("http://www.culture.go.kr/upload/a.jpg") == "https://www.culture.go.kr/upload/a.jpg"
+    assert culture_api.poster_url("https://x.kr/b.png") == "https://x.kr/b.png"
+    assert culture_api.poster_url("") == "" and culture_api.poster_url(None) == ""
+    assert culture_api.poster_url("javascript:alert(1)") == ""
+    item = {"seq": "9", "title": "t", "realmName": "전시", "area": "서울", "place": "p",
+            "startDate": "20261001", "endDate": "20261231", "thumbnail": "http://www.culture.go.kr/x.jpg"}
+    assert culture_api.normalize_item(item).thumbnail == "https://www.culture.go.kr/x.jpg"

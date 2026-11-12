@@ -41,6 +41,8 @@ STORE_UNAVAILABLE = "기록 저장소를 열 수 없습니다. DB_PATH를 확인
 SELECT_EXHIBITION = "왼쪽 목록에서 전시를 선택하세요"
 DETAIL_PANE_TITLE = "전시 상세"
 
+CLOSING_SOON = "D-{days} 마감임박"
+APP_TAGLINE = "오늘 볼 전시를 찾고, 본 전시를 기록하세요"
 GOOGLE_LOGIN_BUTTON = "구글로 로그인"
 GOOGLE_LOGOUT_BUTTON = "로그아웃"
 GOOGLE_LOGGED_IN_AS = "로그인: {email}"
