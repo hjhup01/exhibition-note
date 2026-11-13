@@ -208,8 +208,9 @@ def my_page(tmp_path, monkeypatch):
 def open_done_tab(expand=True):
     at = AppTest.from_file(APP, default_timeout=30).run()
     at.radio(key="page").set_value(messages.PAGE_MY).run()
-    if expand:  # 관람완료 목록에서 전시를 펼친다
-        at.session_state["rec-1"] = True
+    if expand:  # 관람완료 탭과 전체 탭 목록에서 전시를 펼친다
+        at.session_state["rec-관람완료-1"] = True
+        at.session_state["all-1"] = True
         at.run()
     assert not at.exception
     return at
@@ -279,7 +280,7 @@ def test_status_tabs_show_one_line_list_and_load_photos_only_when_opened(my_page
     assert [e.label for e in done.expander] == ["빛의 층위 · 관람일 2026-11-02 · ★★★★☆ · 📷 1"]
     assert messages.RECORD_LIST_NOTE in [c.value for c in done.caption]
     assert not done.get("image") and not done.get("file_uploader")  # 접혀 있으면 사진을 불러오지 않는다
-    at.session_state["rec-1"] = True
+    at.session_state["rec-관람완료-1"] = True
     at.run()
     assert len(at.tabs[3].get("image")) == 1 and at.tabs[3].get("file_uploader")
 
@@ -296,3 +297,34 @@ def test_record_label_escapes_markdown_and_shows_status_info():
     assert label({**base, "status": "관심"}) == r"\[특별전\] \*빛\* · P · ~2026-12-31"
     assert label({**base, "status": "관람예정"}).endswith("관람예정일 2026-11-20")
     assert label({**base, "status": "관람완료"}).endswith("관람일 -")
+
+
+def test_all_tab_is_one_line_list_and_loads_photos_only_when_opened(my_page):
+    st_ = storage.LocalStorage(my_page)
+    repository.add_photo(my_page, "1", st_.save_photo("a.jpg", photos.prepare_image(png())))
+    at = open_done_tab(expand=False)
+    all_tab = at.tabs[0]
+    assert [e.label for e in all_tab.expander] == ["빛의 층위 · 관람일 2026-11-02 · 📷 1"]
+    assert not all_tab.get("image")  # 접혀 있으면 사진을 불러오지 않는다
+    at.session_state["all-1"] = True
+    at.run()
+    assert len(at.tabs[0].get("image")) == 1
+
+
+def test_box_opened_in_one_status_tab_is_closed_after_moving_to_next_status(tmp_path, monkeypatch):
+    """관심 탭에서 펼친 채 '관람예정'으로 바꿔도 관람예정 탭에서는 접힌 한 줄 목록으로 나온다."""
+    db = str(tmp_path / "x.db")
+    monkeypatch.setenv("DB_PATH", db)
+    monkeypatch.setattr(config, "today_kst", lambda: TODAY)
+    monkeypatch.setattr(culture_api, "fetch_exhibitions", lambda *a, **k: [EX])
+    repository.init_db(db)
+    repository.save(db, EX)
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    at.radio(key="page").set_value(messages.PAGE_MY).run()
+    at.session_state["rec-관심-1"] = True
+    at.session_state["rec-관심-open-1"] = True
+    at.run()
+    at.button(key="plan-1").click().run()
+    assert not at.exception
+    assert repository.list_by_status(db, "관람예정")
+    assert not at.session_state["rec-관람예정-1"]  # 관람예정 탭의 상자는 접혀 있다

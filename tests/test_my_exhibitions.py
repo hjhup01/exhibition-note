@@ -116,7 +116,7 @@ def test_ac8_tab_order_updated_at_desc_then_id(env):
     at = go_my(run())
     assert at.tabs[0].label == "전체"
     # 전체 탭: [관심](B전, A전) → [관람예정](C전) → [관람완료] 순으로 묶여 나온다
-    assert [s.value for s in at.tabs[0].subheader] == ["B전", "A전", "C전"]
+    assert [e.label.split(" · ")[0] for e in at.tabs[0].expander] == ["B전", "A전", "C전"]
     assert [e.label.split(" · ")[0] for e in at.tabs[1].expander] == ["B전", "A전"]
     assert [e.label.split(" · ")[0] for e in at.tabs[2].expander] == ["C전"]
     assert not at.tabs[3].expander

@@ -690,7 +690,8 @@ def _delete_record(db_path, eid):
     if result.ok:
         for pid in ids:
             _forget_photo(pid)
-        st.session_state.pop(f"rec-open-{eid}", None)
+        for prefix in ["all", *(f"rec-{s}" for s in repository.STATUSES)]:
+            st.session_state.pop(f"{prefix}-open-{eid}", None)
     _remember_result(result, messages.RECORD_DELETED_DONE)
 
 
@@ -733,9 +734,19 @@ def _render_all(db_path):
             _render_all_card(r)
 
 
+def _record_box(r, prefix):
+    """기록 한 줄 목록(펼침 상자). 처음엔 접혀 있고 누르면 펼쳐진다.
+    목록 줄 제목(별점·사진 수)이 바뀌면 Streamlit이 상자를 새로 만들어 접어 버리므로, 열림 상태를 따로 기억한다.
+    prefix: 탭마다 다른 key 앞부분('rec-관람완료' 등 = 상태 탭, 'all' = 전체 탭)."""
+    eid = r["exhibition_id"]
+    return st.expander(record_label(r), expanded=bool(st.session_state.get(f"{prefix}-open-{eid}")),
+                       key=f"{prefix}-{eid}", on_change=_remember_open, args=(prefix, eid))
+
+
 def _render_all_card(r):
-    with st.container(border=True):
-        st.subheader(r["title"])
+    """전체 탭의 기록: 한 줄 목록, 누르면 장소·기간·날짜·관람평·사진(사진은 펼쳤을 때만 불러온다)."""
+    box = _record_box(r, "all")
+    with box:
         st.caption(" · ".join(x for x in (r["place"], r["region"],
                                           f"{r['start_date']} ~ {r['end_date']}") if x))
         if _date_line(r):
@@ -743,15 +754,16 @@ def _render_all_card(r):
         if r["review_rating"] is not None:
             st.write("★" * r["review_rating"] + "☆" * (5 - r["review_rating"]))
             st.write(r["review_text"])
-        _render_photos(None, r, editable=False)
+        if box.open:
+            _render_photos(None, r, editable=False)
 
 
 _MD_SPECIAL = str.maketrans({c: "\\" + c for c in "\\`*_[]<>#|~$"})
 
 
-def _remember_open(eid):
+def _remember_open(prefix, eid):
     """펼침 상자를 열고 닫을 때: 그 상태를 따로 기억한다(제목이 바뀌어 상자가 새로 만들어져도 유지)."""
-    st.session_state[f"rec-open-{eid}"] = bool(st.session_state.get(f"rec-{eid}"))
+    st.session_state[f"{prefix}-open-{eid}"] = bool(st.session_state.get(f"{prefix}-{eid}"))
 
 
 def record_label(r):
@@ -785,11 +797,10 @@ def _render_my(db_path, today):
             else:
                 st.caption(messages.RECORD_LIST_NOTE)
             for r in rows:
-                # 처음에는 한 줄 목록만, 누르면 펼쳐진다. 목록 줄 제목(별점·사진 수)이 바뀌면 Streamlit이 상자를
-                # 새로 만들어 접어 버리므로, 열림 상태를 따로 기억해 두었다가 그대로 펼쳐 둔다.
+                # 처음에는 한 줄 목록만, 누르면 펼쳐진다(열림 상태는 _record_box가 기억한다).
+                # 상태마다 key를 따로 둔다: 관심 탭에서 펼친 채 '관람예정'으로 바꿔도 관람예정 탭에서는 접혀 나온다.
                 eid = r["exhibition_id"]
-                box = st.expander(record_label(r), expanded=bool(st.session_state.get(f"rec-open-{eid}")),
-                                  key=f"rec-{eid}", on_change=_remember_open, args=(eid,))
+                box = _record_box(r, f"rec-{status}")
                 with box:
                     st.caption(" · ".join(x for x in (r["place"], r["region"],
                                                       f"{r['start_date']} ~ {r['end_date']}") if x))

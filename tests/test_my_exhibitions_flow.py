@@ -161,7 +161,7 @@ def test_all_tab_first_lists_every_status_read_only(db, monkeypatch):
     # 상태별 제목 아래에 목록: [관심] 빛의 층위 → [관람예정] 없음 → [관람완료] 돌과 숨
     heads = [b.label for b in all_tab.button]  # 묶음 제목은 누르면 그 탭으로 가는 버튼
     assert heads == ["[관심] · 1건  ›", "[관람예정] · 0건  ›", "[관람완료] · 1건  ›"]
-    assert [s.value for s in all_tab.subheader] == ["빛의 층위", "돌과 숨"]
+    assert [e.label.split(" · ")[0] for e in all_tab.expander] == ["빛의 층위", "돌과 숨"]  # 한 줄 목록
     captions = " ".join(c.value for c in all_tab.caption)
     assert "실제 관람일 2026-11-05" in captions and messages.EMPTY_TAB in captions
     assert "상태 관심" not in captions
