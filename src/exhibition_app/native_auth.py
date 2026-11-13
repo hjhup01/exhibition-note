@@ -7,7 +7,13 @@ secrets.toml에 [auth] 항목이 있으면 이 방식을 쓴다.
   권한 범위는 [auth] client_kwargs.scope 에 drive.file 을 넣어 요청한다(예시는 secrets.toml.example).
 [auth]가 없으면 기존 방식(google_drive.auth_url → ?code= 처리)을 그대로 쓴다.
 """
+import time
+
 import streamlit as st
+
+# 구글 access token은 1시간짜리이고 Streamlit은 갱신 토큰을 주지 않는다.
+# 만료 이만큼 전부터는 '곧 만료'로 보고, 앱을 쓰는 중이면 미리 다시 로그인시킨다(시트에 쓰다가 만료되지 않게).
+RELOGIN_MARGIN_SECONDS = 180
 
 
 def enabled():
@@ -23,7 +29,8 @@ def enabled():
 
 
 def current_login():
-    """로그인돼 있으면 {'access_token', 'email'}, 아니면 None. 토큰이 노출 설정되지 않았으면 None."""
+    """로그인돼 있으면 {'access_token', 'email', 'expires_at'}, 아니면 None. 토큰이 노출 설정되지 않았으면 None.
+    expires_at: 구글 ID 토큰의 만료 시각(exp, 초). access token과 같이 1시간 뒤다. 모르면 None."""
     try:
         if not st.user.is_logged_in:
             return None
@@ -32,7 +39,19 @@ def current_login():
         return None
     if not token:
         return None
-    return {"access_token": token, "email": st.user.get("email") or ""}
+    try:
+        exp = int(st.user.get("exp"))
+    except (TypeError, ValueError):
+        exp = None
+    return {"access_token": token, "email": st.user.get("email") or "", "expires_at": exp}
+
+
+def expires_soon(login, now=None, margin=RELOGIN_MARGIN_SECONDS):
+    """곧(margin초 안에) 만료되거나 이미 만료된 로그인인지. 만료 시각을 모르면 False."""
+    exp = (login or {}).get("expires_at")
+    if exp is None:
+        return False
+    return exp - (time.time() if now is None else now) <= margin
 
 
 def login():

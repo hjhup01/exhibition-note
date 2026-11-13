@@ -108,11 +108,32 @@ def _current_login(settings):
     """지금 쓸 구글 로그인({'access_token','email'}) 또는 None."""
     if settings == NATIVE:
         login = native_auth.current_login()
-        # 만료된 토큰이 쿠키에 남아 있으면 로그인 안 된 것으로 보고 다시 로그인하게 한다
-        if login and login["access_token"] == st.session_state.get("expired_token"):
+        if not login:
+            return None
+        # 만료된 토큰이 쿠키에 남아 있으면(쿠키는 30일, 토큰은 1시간) 로그인 안 된 것으로 보고 다시 로그인하게 한다
+        if login["access_token"] == st.session_state.get("expired_token"):
+            return None
+        if native_auth.expires_soon(login, margin=0):  # 만료 시각이 이미 지났다: 시트에 물어보지 않고 바로 만료 처리
+            st.session_state["expired_token"] = login["access_token"]
             return None
         return login
     return st.session_state.get("google")
+
+
+def _auto_relogin():
+    """[1번] 앱을 쓰는 중에 구글 로그인이 곧 만료되거나 만료되면 자동으로 구글 로그인으로 보냈다가 돌아오게 한다.
+    무한 반복 방지: 이 세션에서 로그인이 한 번이라도 정상 동작한 경우(login_ok)에만, 세션당 한 번만 보낸다.
+    이미 만료된 상태로 새로 들어왔거나 구글 화면에서 취소하고 돌아온 경우(새 세션)는 보내지 않고 로그인 버튼을 보여 준다."""
+    if st.session_state.get("relogin_tried") or not st.session_state.get("login_ok"):
+        return
+    login = native_auth.current_login()
+    if not login:
+        return
+    expired = login["access_token"] == st.session_state.get("expired_token")
+    if expired or native_auth.expires_soon(login):
+        st.session_state["relogin_tried"] = True
+        native_auth.login()  # 같은 창이 구글 로그인으로 넘어간다
+        st.stop()
 
 
 def _forget_login():
@@ -134,9 +155,12 @@ def _open_storage():
         return (store, None, None) if ok else (None, messages.STORE_UNAVAILABLE, None)
     if settings != NATIVE:
         _handle_google_redirect(settings)
+    else:
+        _auto_relogin()
     login = _current_login(settings)
     if not login:
-        return None, messages.GOOGLE_LOGIN_NEEDED, settings
+        expired = settings == NATIVE and st.session_state.get("expired_token")
+        return None, (messages.GOOGLE_LOGIN_EXPIRED if expired else messages.GOOGLE_LOGIN_NEEDED), settings
     cache = st.session_state.setdefault("sheet_cache", {})
     if cache.get("owner") != login.get("email"):  # 다른 계정으로 바뀌었으면 이전 사람 기록을 버린다
         storage.SheetStorage(None, cache).reset()
@@ -145,6 +169,7 @@ def _open_storage():
     store = storage.SheetStorage(google_drive.SheetClient(login["access_token"]), cache)
     try:
         store.prepare()
+        st.session_state["login_ok"] = True  # 이 세션에서 로그인이 정상 동작했다(자동 재로그인 조건)
         return store, None, settings
     except google_drive.AuthExpired as e:
         _forget_login()

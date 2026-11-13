@@ -390,3 +390,53 @@ def test_native_expired_token_asks_to_login_again(native_env):
     assert not at.exception and messages.GOOGLE_LOGIN_EXPIRED in texts(at)
     at.run()  # 같은 만료 토큰이 쿠키에 남아 있어도 로그인 버튼을 다시 보여 준다
     assert at.sidebar.button(key="google-login")
+
+
+# ---------- 1시간 만료 → 자동 재로그인(반복 방지) ----------
+
+def test_expires_soon_uses_id_token_exp():
+    from exhibition_app import native_auth
+    assert native_auth.expires_soon({"expires_at": 1000}, now=900) is True        # 100초 남음(< 180)
+    assert native_auth.expires_soon({"expires_at": 1000}, now=500) is False       # 500초 남음
+    assert native_auth.expires_soon({"expires_at": 1000}, now=999, margin=0) is False
+    assert native_auth.expires_soon({"expires_at": 1000}, now=1001, margin=0) is True
+    assert native_auth.expires_soon({"expires_at": None}, now=10**10) is False   # 모르면 만료로 보지 않는다
+
+
+def test_native_auto_relogin_once_when_token_expires_during_use(native_env):
+    import time
+    state, shared = native_env
+    state["login"] = {"access_token": "AT", "email": "me@gmail.com", "expires_at": int(time.time()) + 3600}
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert not at.exception and state["calls"] == []  # 정상 사용 중
+    state["login"]["expires_at"] = int(time.time()) + 60  # 1시간이 거의 다 됨
+    at.run()
+    assert state["calls"] == ["login"]  # 자동으로 구글 로그인으로 보냈다
+    at.run()
+    assert state["calls"] == ["login"]  # 같은 세션에서 다시 보내지 않는다(반복 방지)
+
+
+def test_native_no_auto_relogin_on_fresh_visit_with_expired_cookie(native_env):
+    """이미 만료된 쿠키로 새로 들어왔거나, 구글 화면에서 취소하고 돌아온 경우: 자동으로 보내지 않고 버튼을 보여 준다."""
+    import time
+    state, shared = native_env
+    state["login"] = {"access_token": "OLD", "email": "me@gmail.com", "expires_at": int(time.time()) - 10}
+    at = AppTest.from_file(APP, default_timeout=30).run()
+    assert not at.exception and state["calls"] == []
+    assert messages.GOOGLE_LOGIN_EXPIRED in texts(at)
+    assert at.sidebar.button(key="google-login")
+
+
+def test_native_auto_relogin_after_write_fails_with_expired_token(native_env):
+    import time
+    state, shared = native_env
+    state["login"] = {"access_token": "AT", "email": "me@gmail.com", "expires_at": int(time.time()) + 3600}
+    at = AppTest.from_file(APP, default_timeout=30).run()
+
+    def expired(*a, **k):
+        raise google_drive.AuthExpired(messages.GOOGLE_LOGIN_EXPIRED)
+    shared.write_rows = expired  # 구글이 토큰을 일찍 취소한 경우 등
+    at.button(key="pick-1").click().run()
+    at.button(key="save-1").click().run()
+    assert not at.exception
+    assert state["calls"] == ["login"]
